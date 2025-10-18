@@ -1,4 +1,4 @@
-const twilio = require('twilio');
+import twilio from 'twilio';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
