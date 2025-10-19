@@ -4,6 +4,20 @@ import { supabase } from './supabaseClient';
 import { sendSMS } from './twilioService';
 import * as XLSX from 'xlsx';
 
+// Predefined variables for easy insertion
+const predefinedVariables = [
+  { name: 'name', label: 'Name', icon: '👤' },
+  { name: 'phone', label: 'Phone', icon: '📱' },
+  { name: 'email', label: 'Email', icon: '📧' },
+  { name: 'date', label: 'Date', icon: '📅' },
+  { name: 'time', label: 'Time', icon: '🕐' },
+  { name: 'appointment', label: 'Appointment', icon: '📆' },
+  { name: 'service', label: 'Service', icon: '💼' },
+  { name: 'price', label: 'Price', icon: '💰' },
+  { name: 'location', label: 'Location', icon: '📍' },
+  { name: 'link', label: 'Link', icon: '🔗' }
+];
+
 const App = () => {
   const [activeTab, setActiveTab] = useState('send');
   const [clients, setClients] = useState([]);
@@ -11,20 +25,6 @@ const App = () => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  // Predefined variables for easy insertion
-  const predefinedVariables = [
-    { name: 'name', label: 'Name', icon: '👤' },
-    { name: 'phone', label: 'Phone', icon: '📱' },
-    { name: 'email', label: 'Email', icon: '📧' },
-    { name: 'date', label: 'Date', icon: '📅' },
-    { name: 'time', label: 'Time', icon: '🕐' },
-    { name: 'appointment', label: 'Appointment', icon: '📆' },
-    { name: 'service', label: 'Service', icon: '💼' },
-    { name: 'price', label: 'Price', icon: '💰' },
-    { name: 'location', label: 'Location', icon: '📍' },
-    { name: 'link', label: 'Link', icon: '🔗' }
-  ];
 
   // Form states
   const [selectedClient, setSelectedClient] = useState('');
@@ -254,7 +254,7 @@ const App = () => {
   }, [messageContent, templateVariables, replaceVariables]);
 
   // Insert variable into textarea at cursor position
-  const insertVariable = useCallback((variableName, textareaRef) => {
+  const insertVariable = (variableName, textareaRef) => {
     if (!textareaRef.current) return;
     
     const textarea = textareaRef.current;
@@ -280,28 +280,22 @@ const App = () => {
       textarea.focus();
       textarea.setSelectionRange(newCursorPos, newCursorPos);
     }, 0);
-  }, []);
-
-  // Handle drag start
-  const handleDragStart = useCallback((e, variableName) => {
-    e.dataTransfer.setData('variable', variableName);
-    e.dataTransfer.effectAllowed = 'copy';
-  }, []);
+  };
 
   // Handle drop
-  const handleDrop = useCallback((e, textareaRef) => {
+  const handleDrop = (e, textareaRef) => {
     e.preventDefault();
     const variableName = e.dataTransfer.getData('variable');
     if (variableName) {
       insertVariable(variableName, textareaRef);
     }
-  }, [insertVariable]);
+  };
 
   // Prevent default drag over
-  const handleDragOver = useCallback((e) => {
+  const handleDragOver = (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
-  }, []);
+  };
 
   const handleSendSMS = async () => {
     if (!selectedClient || !messageContent) return;
@@ -412,7 +406,7 @@ const App = () => {
   );
 
   // Variable Pills Component
-  const VariablePills = ({ onInsert, textareaRef }) => (
+  const VariablePills = ({ textareaRef }) => (
     <div className="bg-[#1E1E21] p-4 rounded-lg border border-gray-700">
       <h3 className="text-sm font-medium text-gray-300 mb-3">📌 Quick Variables (Drag or Click)</h3>
       <div className="flex flex-wrap gap-2">
@@ -420,7 +414,10 @@ const App = () => {
           <button
             key={variable.name}
             draggable
-            onDragStart={(e) => handleDragStart(e, variable.name)}
+            onDragStart={(e) => {
+              e.dataTransfer.setData('variable', variable.name);
+              e.dataTransfer.effectAllowed = 'copy';
+            }}
             onClick={() => insertVariable(variable.name, textareaRef)}
             className="flex items-center gap-2 px-3 py-2 bg-[#2E2F33] text-white rounded-lg border border-gray-600 hover:bg-[#56AF40] hover:border-[#56AF40] transition-all cursor-move"
             title={`Click to insert or drag & drop {{${variable.name}}}`}
