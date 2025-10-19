@@ -12,6 +12,7 @@ const App = () => {
 
   // Form states
   const [selectedClient, setSelectedClient] = useState('');
+  const [selectedClients, setSelectedClients] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [messageContent, setMessageContent] = useState('');
   const [templateVariables, setTemplateVariables] = useState({});
@@ -149,6 +150,49 @@ const App = () => {
     }
   };
 
+  const handleBatchSendSMS = async () => {
+    if (selectedClients.length === 0 || !messageContent) {
+      alert('Please select clients and enter a message');
+      return;
+    }
+
+    if (!window.confirm(`Send SMS to ${selectedClients.length} clients?`)) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const finalContent = replaceVariables(messageContent, templateVariables);
+
+      const response = await fetch('/api/batch-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientIds: selectedClients,
+          message: finalContent,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(`Batch send complete!\nSent: ${data.sent}\nFailed: ${data.failed}`);
+        setSelectedClients([]);
+        setSelectedTemplate('');
+        setMessageContent('');
+        setTemplateVariables({});
+        loadMessages();
+      } else {
+        alert('Batch send failed: ' + data.error);
+      }
+    } catch (error) {
+      alert('Error: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -172,6 +216,17 @@ const App = () => {
           >
             <Send size={18} />
             Send SMS
+          </button>
+          <button
+            onClick={() => setActiveTab('batch')}
+            className={`px-4 py-2 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
+              activeTab === 'batch'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Send size={18} />
+            Batch Send
           </button>
           <button
             onClick={() => setActiveTab('clients')}
@@ -229,6 +284,24 @@ const App = () => {
           />
         )}
 
+        {activeTab === 'batch' && (
+          <BatchSendTab
+            clients={clients}
+            templates={templates}
+            selectedClients={selectedClients}
+            setSelectedClients={setSelectedClients}
+            selectedTemplate={selectedTemplate}
+            handleTemplateSelect={handleTemplateSelect}
+            messageContent={messageContent}
+            setMessageContent={setMessageContent}
+            templateVariables={templateVariables}
+            setTemplateVariables={setTemplateVariables}
+            handleBatchSendSMS={handleBatchSendSMS}
+            loading={loading}
+            replaceVariables={replaceVariables}
+          />
+        )}
+
         {activeTab === 'clients' && (
           <ClientsTab
             clients={clients}
@@ -256,6 +329,309 @@ const App = () => {
 
 // Send SMS Tab Component
 const SendSMSTab = ({
+  clients,
+  templates,
+  selectedClient,
+  setSelectedClient,
+  selectedTemplate,
+  handleTemplateSelect,
+  messageContent,
+  setMessageContent,
+  templateVariables,
+  setTemplateVariables,
+  handleSendSMS,
+  loading,
+  replaceVariables
+}) => {
+  const activeClients = clients.filter(c => c.status === 'active');
+  const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <h2 className="text-2xl font-semibold mb-6">Send SMS Message</h2>
+
+      <div className="space-y-6">
+        {/* Client Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Client
+          </label>
+          <select
+            value={selectedClient}
+            onChange={(e) => setSelectedClient(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">-- Choose a client --</option>
+            {activeClients.map(client => (
+              <option key={client.id} value={client.id}>
+                {client.name} ({client.phone})
+              </option>
+            ))}
+          </select>
+          {activeClients.length === 0 && (
+            <p className="text-sm text-red-600 mt-1">No active clients available</p>
+          )}
+        </div>
+
+        {/* Template Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Template (Optional)
+          </label>
+          <select
+            value={selectedTemplate}
+            onChange={(e) => handleTemplateSelect(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">-- Choose a template --</option>
+            {templates.map(template => (
+              <option key={template.id} value={template.id}>
+                {template.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Template Variables */}
+        {selectedTemplateData && selectedTemplateData.variables && selectedTemplateData.variables.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Template Variables
+            </label>
+            <div className="space-y-2">
+              {selectedTemplateData.variables.map(varName => (
+                <div key={varName}>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    {varName}
+                  </label>
+                  <input
+                    type="text"
+                    value={templateVariables[varName] || ''}
+                    onChange={(e) => setTemplateVariables({
+                      ...templateVariables,
+                      [varName]: e.target.value
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder={`Enter ${varName}`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Message Content */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Message Content
+          </label>
+          <textarea
+            value={messageContent}
+            onChange={(e) => setMessageContent(e.target.value)}
+            rows={6}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Type your message here..."
+          />
+          <p className="text-sm text-gray-500 mt-1">
+            Character count: {messageContent.length}
+          </p>
+        </div>
+
+        {/* Preview */}
+        {selectedTemplateData && Object.keys(templateVariables).length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Preview
+            </label>
+            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                {replaceVariables(messageContent, templateVariables)}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Send Button */}
+        <button
+          onClick={handleSendSMS}
+          disabled={loading || !selectedClient || !messageContent}
+          className="w-full bg-blue-600 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+        >
+          <Send size={20} />
+          {loading ? 'Sending...' : 'Send SMS'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Batch Send Tab Component
+const BatchSendTab = ({
+  clients,
+  templates,
+  selectedClients,
+  setSelectedClients,
+  selectedTemplate,
+  handleTemplateSelect,
+  messageContent,
+  setMessageContent,
+  templateVariables,
+  setTemplateVariables,
+  handleBatchSendSMS,
+  loading,
+  replaceVariables
+}) => {
+  const activeClients = clients.filter(c => c.status === 'active');
+  const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
+
+  const toggleClient = (clientId) => {
+    setSelectedClients(prev =>
+      prev.includes(clientId)
+        ? prev.filter(id => id !== clientId)
+        : [...prev, clientId]
+    );
+  };
+
+  const toggleAll = () => {
+    if (selectedClients.length === activeClients.length) {
+      setSelectedClients([]);
+    } else {
+      setSelectedClients(activeClients.map(c => c.id));
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <h2 className="text-2xl font-semibold mb-6">Batch Send SMS</h2>
+
+      <div className="space-y-6">
+        {/* Client Selection */}
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Select Clients ({selectedClients.length} selected)
+            </label>
+            <button
+              onClick={toggleAll}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              {selectedClients.length === activeClients.length ? 'Deselect All' : 'Select All'}
+            </button>
+          </div>
+          <div className="border border-gray-300 rounded-md max-h-60 overflow-y-auto">
+            {activeClients.map(client => (
+              <label
+                key={client.id}
+                className="flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedClients.includes(client.id)}
+                  onChange={() => toggleClient(client.id)}
+                  className="mr-3 h-4 w-4 text-blue-600"
+                />
+                <span className="text-sm">
+                  {client.name} <span className="text-gray-500">({client.phone})</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {activeClients.length === 0 && (
+            <p className="text-sm text-red-600 mt-1">No active clients available</p>
+          )}
+        </div>
+
+        {/* Template Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Template (Optional)
+          </label>
+          <select
+            value={selectedTemplate}
+            onChange={(e) => handleTemplateSelect(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">-- Choose a template --</option>
+            {templates.map(template => (
+              <option key={template.id} value={template.id}>
+                {template.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Template Variables */}
+        {selectedTemplateData && selectedTemplateData.variables && selectedTemplateData.variables.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Template Variables
+            </label>
+            <div className="space-y-2">
+              {selectedTemplateData.variables.map(varName => (
+                <div key={varName}>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    {varName}
+                  </label>
+                  <input
+                    type="text"
+                    value={templateVariables[varName] || ''}
+                    onChange={(e) => setTemplateVariables({
+                      ...templateVariables,
+                      [varName]: e.target.value
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder={`Enter ${varName}`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Message Content */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Message Content
+          </label>
+          <textarea
+            value={messageContent}
+            onChange={(e) => setMessageContent(e.target.value)}
+            rows={6}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Type your message here..."
+          />
+          <p className="text-sm text-gray-500 mt-1">
+            Character count: {messageContent.length}
+          </p>
+        </div>
+
+        {/* Preview */}
+        {selectedTemplateData && Object.keys(templateVariables).length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Preview
+            </label>
+            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                {replaceVariables(messageContent, templateVariables)}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Send Button */}
+        <button
+          onClick={handleBatchSendSMS}
+          disabled={loading || selectedClients.length === 0 || !messageContent}
+          className="w-full bg-blue-600 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+        >
+          <Send size={20} />
+          {loading ? 'Sending...' : `Send to ${selectedClients.length} Clients`}
+        </button>
+      </div>
+    </div>
+  );
+};
   clients,
   templates,
   selectedClient,
