@@ -175,10 +175,17 @@ const SendSMSTab = ({
             />
           </div>
 
-          {messageContent && Object.keys(templateVariables).length > 0 && (
+          {messageContent && selectedClient && (
             <div className="bg-[#1E1E21] p-4 rounded-lg border border-gray-700">
               <h3 className="text-sm font-medium text-gray-300 mb-2">Preview</h3>
-              <p className="text-gray-400 whitespace-pre-wrap">{replaceVariables(messageContent, templateVariables)}</p>
+              <p className="text-gray-400 whitespace-pre-wrap">
+                {replaceVariables(messageContent, {
+                  name: clients.find(c => c.id === selectedClient)?.name || '',
+                  phone: clients.find(c => c.id === selectedClient)?.phone || '',
+                  email: clients.find(c => c.id === selectedClient)?.email || '',
+                  ...templateVariables
+                })}
+              </p>
             </div>
           )}
 
@@ -827,7 +834,16 @@ const App = () => {
     setLoading(true);
     try {
       const client = clients.find(c => c.id === selectedClient);
-      const finalMessage = replaceVariables(messageContent, templateVariables);
+      
+      // Auto-fill common variables from client data
+      const autoVariables = {
+        name: client.name,
+        phone: client.phone,
+        email: client.email || '',
+        ...templateVariables // Keep any manually entered template variables
+      };
+      
+      const finalMessage = replaceVariables(messageContent, autoVariables);
       
       const result = await sendSMS(client.phone, finalMessage);
       
@@ -857,7 +873,16 @@ const App = () => {
     
     for (const clientId of selectedClients) {
       const client = clients.find(c => c.id === clientId);
-      const finalMessage = replaceVariables(messageContent, templateVariables);
+      
+      // Auto-fill common variables from client data
+      const autoVariables = {
+        name: client.name,
+        phone: client.phone,
+        email: client.email || '',
+        ...templateVariables // Keep any manually entered template variables
+      };
+      
+      const finalMessage = replaceVariables(messageContent, autoVariables);
       
       try {
         const result = await sendSMS(client.phone, finalMessage);
