@@ -18,6 +18,32 @@ const predefinedVariables = [
   { name: 'link', label: 'Link', icon: '🔗' }
 ];
 
+// Variable Pills Component (outside App to avoid circular deps)
+const VariablePills = ({ onInsertVariable, textareaRef }) => (
+  <div className="bg-[#1E1E21] p-4 rounded-lg border border-gray-700">
+    <h3 className="text-sm font-medium text-gray-300 mb-3">📌 Quick Variables (Drag or Click)</h3>
+    <div className="flex flex-wrap gap-2">
+      {predefinedVariables.map(variable => (
+        <button
+          key={variable.name}
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData('variable', variable.name);
+            e.dataTransfer.effectAllowed = 'copy';
+          }}
+          onClick={() => onInsertVariable(variable.name, textareaRef)}
+          className="flex items-center gap-2 px-3 py-2 bg-[#2E2F33] text-white rounded-lg border border-gray-600 hover:bg-[#56AF40] hover:border-[#56AF40] transition-all cursor-move"
+          title={`Click to insert or drag & drop {{${variable.name}}}`}
+        >
+          <span>{variable.icon}</span>
+          <span className="text-sm">{variable.label}</span>
+        </button>
+      ))}
+    </div>
+    <p className="text-xs text-gray-500 mt-3">💡 Tip: Click to insert at cursor, or drag & drop into the text area below</p>
+  </div>
+);
+
 const App = () => {
   const [activeTab, setActiveTab] = useState('send');
   const [clients, setClients] = useState([]);
@@ -405,32 +431,6 @@ const App = () => {
     </button>
   );
 
-  // Variable Pills Component
-  const VariablePills = ({ textareaRef }) => (
-    <div className="bg-[#1E1E21] p-4 rounded-lg border border-gray-700">
-      <h3 className="text-sm font-medium text-gray-300 mb-3">📌 Quick Variables (Drag or Click)</h3>
-      <div className="flex flex-wrap gap-2">
-        {predefinedVariables.map(variable => (
-          <button
-            key={variable.name}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData('variable', variable.name);
-              e.dataTransfer.effectAllowed = 'copy';
-            }}
-            onClick={() => insertVariable(variable.name, textareaRef)}
-            className="flex items-center gap-2 px-3 py-2 bg-[#2E2F33] text-white rounded-lg border border-gray-600 hover:bg-[#56AF40] hover:border-[#56AF40] transition-all cursor-move"
-            title={`Click to insert or drag & drop {{${variable.name}}}`}
-          >
-            <span>{variable.icon}</span>
-            <span className="text-sm">{variable.label}</span>
-          </button>
-        ))}
-      </div>
-      <p className="text-xs text-gray-500 mt-3">💡 Tip: Click to insert at cursor, or drag & drop into the text area below</p>
-    </div>
-  );
-
   // Send SMS Tab
   const SendSMSTab = () => (
     <div className="space-y-6">
@@ -483,7 +483,7 @@ const App = () => {
             </div>
           )}
 
-          <VariablePills textareaRef={messageTextareaRef} />
+          <VariablePills onInsertVariable={insertVariable} textareaRef={messageTextareaRef} />
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
@@ -594,7 +594,7 @@ const App = () => {
             </div>
           )}
 
-          <VariablePills textareaRef={messageTextareaRef} />
+          <VariablePills onInsertVariable={insertVariable} textareaRef={messageTextareaRef} />
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
@@ -771,7 +771,7 @@ const App = () => {
               className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
             />
             
-            <VariablePills textareaRef={templateContentRef} />
+            <VariablePills onInsertVariable={insertVariable} textareaRef={templateContentRef} />
             
             <div>
               <textarea
