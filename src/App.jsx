@@ -501,7 +501,7 @@ const App = () => {
               className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40] transition-colors"
               placeholder="Type your message or drag variables here..."
             />
-            <p className="text-xs text-gray-500 mt-1">💡 Use {{`{variable}`}} syntax or drag from above</p>
+            <p className="text-xs text-gray-500 mt-1">💡 Use {'{{variable}}'} syntax or drag from above</p>
           </div>
 
           {messageContent && Object.keys(templateVariables).length > 0 && (
@@ -612,7 +612,7 @@ const App = () => {
               className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40] transition-colors"
               placeholder="Type your message or drag variables here..."
             />
-            <p className="text-xs text-gray-500 mt-1">💡 Use {{`{variable}`}} syntax or drag from above</p>
+            <p className="text-xs text-gray-500 mt-1">💡 Use {'{{variable}}'} syntax or drag from above</p>
           </div>
 
           <button
