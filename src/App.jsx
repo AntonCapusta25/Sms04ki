@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Users, MessageSquare, Plus, Trash2, Edit, Eye } from 'lucide-react';
+import { Send, Users, MessageSquare, Plus, Trash2, Edit, Menu, X, Clock, CheckCircle, XCircle, MessageCircle } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { sendSMS } from './twilioService';
 
@@ -9,6 +9,7 @@ const App = () => {
   const [templates, setTemplates] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Form states
   const [selectedClient, setSelectedClient] = useState('');
@@ -17,1157 +18,637 @@ const App = () => {
   const [messageContent, setMessageContent] = useState('');
   const [templateVariables, setTemplateVariables] = useState({});
 
+  // Client form
+  const [clientForm, setClientForm] = useState({ name: '', phone: '', email: '', status: 'active' });
+  const [showClientForm, setShowClientForm] = useState(false);
+
+  // Template form
+  const [templateForm, setTemplateForm] = useState({ name: '', content: '', variables: '' });
+  const [showTemplateForm, setShowTemplateForm] = useState(false);
+
   useEffect(() => {
-    loadData();
+    fetchClients();
+    fetchTemplates();
+    fetchMessages();
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
-    await Promise.all([
-      loadClients(),
-      loadTemplates(),
-      loadMessages()
-    ]);
-    setLoading(false);
+  const fetchClients = async () => {
+    const { data } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
+    setClients(data || []);
   };
 
-  const loadClients = async () => {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (!error) setClients(data || []);
+  const fetchTemplates = async () => {
+    const { data } = await supabase.from('templates').select('*').order('created_at', { ascending: false });
+    setTemplates(data || []);
   };
 
-  const loadTemplates = async () => {
-    const { data, error } = await supabase
-      .from('templates')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (!error) setTemplates(data || []);
-  };
-
-  const loadMessages = async () => {
-    const { data, error } = await supabase
+  const fetchMessages = async () => {
+    const { data } = await supabase
       .from('messages')
-      .select(`
-        *,
-        clients (name, phone)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    
-    if (!error) setMessages(data || []);
+      .select('*, clients(name, phone)')
+      .order('created_at', { ascending: false });
+    setMessages(data || []);
+  };
+
+  const addClient = async () => {
+    if (!clientForm.name || !clientForm.phone) return;
+    await supabase.from('clients').insert([clientForm]);
+    setClientForm({ name: '', phone: '', email: '', status: 'active' });
+    setShowClientForm(false);
+    fetchClients();
+  };
+
+  const deleteClient = async (id) => {
+    await supabase.from('clients').delete().eq('id', id);
+    fetchClients();
+  };
+
+  const addTemplate = async () => {
+    if (!templateForm.name || !templateForm.content) return;
+    const variables = templateForm.variables.split(',').map(v => v.trim()).filter(v => v);
+    await supabase.from('templates').insert([{ ...templateForm, variables }]);
+    setTemplateForm({ name: '', content: '', variables: '' });
+    setShowTemplateForm(false);
+    fetchTemplates();
+  };
+
+  const deleteTemplate = async (id) => {
+    await supabase.from('templates').delete().eq('id', id);
+    fetchTemplates();
   };
 
   const handleTemplateSelect = (templateId) => {
     setSelectedTemplate(templateId);
     const template = templates.find(t => t.id === templateId);
-    
     if (template) {
-      let content = template.content;
-      
-      // Replace variables with empty placeholders for user to fill
-      if (template.variables && template.variables.length > 0) {
-        const vars = {};
-        template.variables.forEach(varName => {
-          vars[varName] = '';
-        });
-        setTemplateVariables(vars);
-      }
-      
-      setMessageContent(content);
+      setMessageContent(template.content);
+      const vars = {};
+      template.variables?.forEach(v => vars[v] = '');
+      setTemplateVariables(vars);
     }
   };
 
   const replaceVariables = (content, variables) => {
     let result = content;
     Object.keys(variables).forEach(key => {
-      const regex = new RegExp(`{{${key}}}`, 'g');
-      result = result.replace(regex, variables[key] || `{{${key}}}`);
+      result = result.replace(new RegExp(`{{${key}}}`, 'g'), variables[key]);
     });
     return result;
   };
 
   const handleSendSMS = async () => {
-    if (!selectedClient || !messageContent) {
-      alert('Please select a client and enter a message');
-      return;
-    }
-
-    const client = clients.find(c => c.id === selectedClient);
-    if (!client) {
-      alert('Client not found');
-      return;
-    }
-
-    if (client.status !== 'active') {
-      alert('Cannot send SMS to inactive or blocked clients');
-      return;
-    }
-
+    if (!selectedClient || !messageContent) return;
     setLoading(true);
-
     try {
-      // Replace variables in message content
-      const finalContent = replaceVariables(messageContent, templateVariables);
+      const client = clients.find(c => c.id === selectedClient);
+      const finalMessage = replaceVariables(messageContent, templateVariables);
+      
+      const result = await sendSMS(client.phone, finalMessage);
+      
+      await supabase.from('messages').insert([{
+        client_id: client.id,
+        template_id: selectedTemplate || null,
+        phone: client.phone,
+        content: finalMessage,
+        status: result.success ? 'sent' : 'failed'
+      }]);
 
-      // Send SMS via Twilio
-      const result = await sendSMS(client.phone, finalContent);
-
-      // Save message to database
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          client_id: selectedClient,
-          template_id: selectedTemplate || null,
-          phone: client.phone,
-          content: finalContent,
-          status: result.success ? 'sent' : 'failed',
-          twilio_sid: result.sid,
-          error_message: result.error,
-          sent_at: result.success ? new Date().toISOString() : null
-        });
-
-      if (!error) {
-        alert(result.success ? 'SMS sent successfully!' : `Failed to send SMS: ${result.error}`);
-        
-        // Reset form
-        setSelectedClient('');
-        setSelectedTemplate('');
-        setMessageContent('');
-        setTemplateVariables({});
-        
-        // Reload messages
-        loadMessages();
-      }
+      alert(result.success ? 'SMS sent successfully!' : 'Failed to send SMS');
+      setSelectedClient('');
+      setSelectedTemplate('');
+      setMessageContent('');
+      setTemplateVariables({});
+      fetchMessages();
     } catch (error) {
       alert('Error sending SMS: ' + error.message);
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
-  const handleBatchSendSMS = async () => {
-    if (selectedClients.length === 0 || !messageContent) {
-      alert('Please select clients and enter a message');
-      return;
-    }
-
-    if (!window.confirm(`Send SMS to ${selectedClients.length} clients?`)) {
-      return;
-    }
-
+  const handleBatchSend = async () => {
+    if (selectedClients.length === 0 || !messageContent) return;
     setLoading(true);
-
-    try {
-      const finalContent = replaceVariables(messageContent, templateVariables);
-
-      const response = await fetch('/api/batch-send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientIds: selectedClients,
-          message: finalContent,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        alert(`Batch send complete!\nSent: ${data.sent}\nFailed: ${data.failed}`);
-        setSelectedClients([]);
-        setSelectedTemplate('');
-        setMessageContent('');
-        setTemplateVariables({});
-        loadMessages();
-      } else {
-        alert('Batch send failed: ' + data.error);
+    
+    for (const clientId of selectedClients) {
+      const client = clients.find(c => c.id === clientId);
+      const finalMessage = replaceVariables(messageContent, templateVariables);
+      
+      try {
+        const result = await sendSMS(client.phone, finalMessage);
+        
+        await supabase.from('messages').insert([{
+          client_id: client.id,
+          template_id: selectedTemplate || null,
+          phone: client.phone,
+          content: finalMessage,
+          status: result.success ? 'sent' : 'failed'
+        }]);
+      } catch (error) {
+        console.error(`Failed to send to ${client.name}:`, error);
       }
-    } catch (error) {
-      alert('Error: ' + error.message);
-    } finally {
-      setLoading(false);
     }
+    
+    alert(`Batch send complete! Sent to ${selectedClients.length} clients`);
+    setSelectedClients([]);
+    setSelectedTemplate('');
+    setMessageContent('');
+    setTemplateVariables({});
+    fetchMessages();
+    setLoading(false);
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <h1 className="text-3xl font-bold text-gray-900">SMS Sender</h1>
-          <p className="text-gray-600">Manage clients, templates, and send SMS messages</p>
-        </div>
-      </header>
-
-      {/* Navigation Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-        <nav className="flex space-x-4 border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('send')}
-            className={`px-4 py-2 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
-              activeTab === 'send'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Send size={18} />
-            Send SMS
-          </button>
-          <button
-            onClick={() => setActiveTab('batch')}
-            className={`px-4 py-2 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
-              activeTab === 'batch'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Send size={18} />
-            Batch Send
-          </button>
-          <button
-            onClick={() => setActiveTab('clients')}
-            className={`px-4 py-2 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
-              activeTab === 'clients'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Users size={18} />
-            Clients
-          </button>
-          <button
-            onClick={() => setActiveTab('templates')}
-            className={`px-4 py-2 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
-              activeTab === 'templates'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <MessageSquare size={18} />
-            Templates
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
-              activeTab === 'history'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Eye size={18} />
-            Message History
-          </button>
-        </nav>
-      </div>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'send' && (
-          <SendSMSTab
-            clients={clients}
-            templates={templates}
-            selectedClient={selectedClient}
-            setSelectedClient={setSelectedClient}
-            selectedTemplate={selectedTemplate}
-            handleTemplateSelect={handleTemplateSelect}
-            messageContent={messageContent}
-            setMessageContent={setMessageContent}
-            templateVariables={templateVariables}
-            setTemplateVariables={setTemplateVariables}
-            handleSendSMS={handleSendSMS}
-            loading={loading}
-            replaceVariables={replaceVariables}
-          />
-        )}
-
-        {activeTab === 'batch' && (
-          <BatchSendTab
-            clients={clients}
-            templates={templates}
-            selectedClients={selectedClients}
-            setSelectedClients={setSelectedClients}
-            selectedTemplate={selectedTemplate}
-            handleTemplateSelect={handleTemplateSelect}
-            messageContent={messageContent}
-            setMessageContent={setMessageContent}
-            templateVariables={templateVariables}
-            setTemplateVariables={setTemplateVariables}
-            handleBatchSendSMS={handleBatchSendSMS}
-            loading={loading}
-            replaceVariables={replaceVariables}
-          />
-        )}
-
-        {activeTab === 'clients' && (
-          <ClientsTab
-            clients={clients}
-            loadClients={loadClients}
-          />
-        )}
-
-        {activeTab === 'templates' && (
-          <TemplatesTab
-            templates={templates}
-            loadTemplates={loadTemplates}
-          />
-        )}
-
-        {activeTab === 'history' && (
-          <MessageHistoryTab
-            messages={messages}
-            loadMessages={loadMessages}
-          />
-        )}
-      </main>
-    </div>
-  );
-};
-
-// Send SMS Tab Component
-const SendSMSTab = ({
-  clients,
-  templates,
-  selectedClient,
-  setSelectedClient,
-  selectedTemplate,
-  handleTemplateSelect,
-  messageContent,
-  setMessageContent,
-  templateVariables,
-  setTemplateVariables,
-  handleSendSMS,
-  loading,
-  replaceVariables
-}) => {
-  const activeClients = clients.filter(c => c.status === 'active');
-  const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
-
-  return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-2xl font-semibold mb-6">Send SMS Message</h2>
-
-      <div className="space-y-6">
-        {/* Client Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Client
-          </label>
-          <select
-            value={selectedClient}
-            onChange={(e) => setSelectedClient(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">-- Choose a client --</option>
-            {activeClients.map(client => (
-              <option key={client.id} value={client.id}>
-                {client.name} ({client.phone})
-              </option>
-            ))}
-          </select>
-          {activeClients.length === 0 && (
-            <p className="text-sm text-red-600 mt-1">No active clients available</p>
-          )}
-        </div>
-
-        {/* Template Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Template (Optional)
-          </label>
-          <select
-            value={selectedTemplate}
-            onChange={(e) => handleTemplateSelect(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">-- Choose a template --</option>
-            {templates.map(template => (
-              <option key={template.id} value={template.id}>
-                {template.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Template Variables */}
-        {selectedTemplateData && selectedTemplateData.variables && selectedTemplateData.variables.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Template Variables
-            </label>
-            <div className="space-y-2">
-              {selectedTemplateData.variables.map(varName => (
-                <div key={varName}>
-                  <label className="block text-xs text-gray-600 mb-1">
-                    {varName}
-                  </label>
-                  <input
-                    type="text"
-                    value={templateVariables[varName] || ''}
-                    onChange={(e) => setTemplateVariables({
-                      ...templateVariables,
-                      [varName]: e.target.value
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder={`Enter ${varName}`}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Message Content */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Message Content
-          </label>
-          <textarea
-            value={messageContent}
-            onChange={(e) => setMessageContent(e.target.value)}
-            rows={6}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Type your message here..."
-          />
-          <p className="text-sm text-gray-500 mt-1">
-            Character count: {messageContent.length}
-          </p>
-        </div>
-
-        {/* Preview */}
-        {selectedTemplateData && Object.keys(templateVariables).length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Preview
-            </label>
-            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                {replaceVariables(messageContent, templateVariables)}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Send Button */}
-        <button
-          onClick={handleSendSMS}
-          disabled={loading || !selectedClient || !messageContent}
-          className="w-full bg-blue-600 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-        >
-          <Send size={20} />
-          {loading ? 'Sending...' : 'Send SMS'}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// Batch Send Tab Component
-const BatchSendTab = ({
-  clients,
-  templates,
-  selectedClients,
-  setSelectedClients,
-  selectedTemplate,
-  handleTemplateSelect,
-  messageContent,
-  setMessageContent,
-  templateVariables,
-  setTemplateVariables,
-  handleBatchSendSMS,
-  loading,
-  replaceVariables
-}) => {
-  const activeClients = clients.filter(c => c.status === 'active');
-  const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
-
-  const toggleClient = (clientId) => {
+  const toggleClientSelection = (clientId) => {
     setSelectedClients(prev =>
-      prev.includes(clientId)
-        ? prev.filter(id => id !== clientId)
-        : [...prev, clientId]
+      prev.includes(clientId) ? prev.filter(id => id !== clientId) : [...prev, clientId]
     );
   };
 
-  const toggleAll = () => {
-    if (selectedClients.length === activeClients.length) {
-      setSelectedClients([]);
-    } else {
-      setSelectedClients(activeClients.map(c => c.id));
-    }
+  const selectAllClients = () => {
+    const activeClients = clients.filter(c => c.status === 'active').map(c => c.id);
+    setSelectedClients(activeClients);
   };
 
-  return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-2xl font-semibold mb-6">Batch Send SMS</h2>
+  const deselectAllClients = () => {
+    setSelectedClients([]);
+  };
 
-      <div className="space-y-6">
-        {/* Client Selection */}
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Select Clients ({selectedClients.length} selected)
-            </label>
-            <button
-              onClick={toggleAll}
-              className="text-sm text-blue-600 hover:text-blue-800"
-            >
-              {selectedClients.length === activeClients.length ? 'Deselect All' : 'Select All'}
-            </button>
-          </div>
-          <div className="border border-gray-300 rounded-md max-h-60 overflow-y-auto">
-            {activeClients.map(client => (
-              <label
-                key={client.id}
-                className="flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedClients.includes(client.id)}
-                  onChange={() => toggleClient(client.id)}
-                  className="mr-3 h-4 w-4 text-blue-600"
-                />
-                <span className="text-sm">
-                  {client.name} <span className="text-gray-500">({client.phone})</span>
-                </span>
-              </label>
-            ))}
-          </div>
-          {activeClients.length === 0 && (
-            <p className="text-sm text-red-600 mt-1">No active clients available</p>
-          )}
-        </div>
+  // Sidebar Navigation
+  const SidebarNav = () => (
+    <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-[#2E2F33] h-full transition-all duration-300 flex flex-col`}>
+      <div className="p-6 flex items-center justify-between border-b border-gray-700">
+        {sidebarOpen && <h1 className="text-xl font-bold text-white">SMS Platform</h1>}
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-gray-400 hover:text-white">
+          {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
+      
+      <nav className="flex-1 p-4">
+        <NavItem icon={<Send size={20} />} label="Send SMS" active={activeTab === 'send'} onClick={() => setActiveTab('send')} collapsed={!sidebarOpen} />
+        <NavItem icon={<MessageCircle size={20} />} label="Batch Send" active={activeTab === 'batch'} onClick={() => setActiveTab('batch')} collapsed={!sidebarOpen} />
+        <NavItem icon={<Users size={20} />} label="Clients" active={activeTab === 'clients'} onClick={() => setActiveTab('clients')} collapsed={!sidebarOpen} />
+        <NavItem icon={<MessageSquare size={20} />} label="Templates" active={activeTab === 'templates'} onClick={() => setActiveTab('templates')} collapsed={!sidebarOpen} />
+        <NavItem icon={<Clock size={20} />} label="History" active={activeTab === 'history'} onClick={() => setActiveTab('history')} collapsed={!sidebarOpen} />
+      </nav>
+    </div>
+  );
 
-        {/* Template Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Template (Optional)
-          </label>
-          <select
-            value={selectedTemplate}
-            onChange={(e) => handleTemplateSelect(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">-- Choose a template --</option>
-            {templates.map(template => (
-              <option key={template.id} value={template.id}>
-                {template.name}
-              </option>
-            ))}
-          </select>
-        </div>
+  const NavItem = ({ icon, label, active, onClick, collapsed }) => (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-all ${
+        active ? 'bg-[#56AF40] text-white' : 'text-gray-400 hover:bg-[#1E1E21] hover:text-white'
+      }`}
+    >
+      {icon}
+      {!collapsed && <span className="font-medium">{label}</span>}
+    </button>
+  );
 
-        {/* Template Variables */}
-        {selectedTemplateData && selectedTemplateData.variables && selectedTemplateData.variables.length > 0 && (
+  // Send SMS Tab
+  const SendSMSTab = () => (
+    <div className="space-y-6">
+      <div className="bg-[#2E2F33] rounded-lg p-6 shadow-lg">
+        <h2 className="text-xl font-semibold mb-6 text-white">Send SMS Message</h2>
+        
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Template Variables
-            </label>
-            <div className="space-y-2">
-              {selectedTemplateData.variables.map(varName => (
-                <div key={varName}>
-                  <label className="block text-xs text-gray-600 mb-1">
-                    {varName}
-                  </label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Select Client</label>
+            <select
+              value={selectedClient}
+              onChange={(e) => setSelectedClient(e.target.value)}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            >
+              <option value="">Choose a client</option>
+              {clients.filter(c => c.status === 'active').map(client => (
+                <option key={client.id} value={client.id}>{client.name} - {client.phone}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Template (Optional)</label>
+            <select
+              value={selectedTemplate}
+              onChange={(e) => handleTemplateSelect(e.target.value)}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            >
+              <option value="">Choose a template</option>
+              {templates.map(template => (
+                <option key={template.id} value={template.id}>{template.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {selectedTemplate && templates.find(t => t.id === selectedTemplate)?.variables?.length > 0 && (
+            <div className="bg-[#1E1E21] p-4 rounded-lg border border-gray-700">
+              <h3 className="text-sm font-medium text-gray-300 mb-3">Template Variables</h3>
+              {templates.find(t => t.id === selectedTemplate).variables.map(variable => (
+                <div key={variable} className="mb-3">
+                  <label className="block text-sm text-gray-400 mb-1">{variable}</label>
                   <input
                     type="text"
-                    value={templateVariables[varName] || ''}
-                    onChange={(e) => setTemplateVariables({
-                      ...templateVariables,
-                      [varName]: e.target.value
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder={`Enter ${varName}`}
+                    value={templateVariables[variable] || ''}
+                    onChange={(e) => setTemplateVariables({...templateVariables, [variable]: e.target.value})}
+                    className="w-full px-3 py-2 bg-[#2E2F33] border border-gray-700 rounded text-white focus:outline-none focus:border-[#56AF40]"
                   />
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Message Content */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Message Content
-          </label>
-          <textarea
-            value={messageContent}
-            onChange={(e) => setMessageContent(e.target.value)}
-            rows={6}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Type your message here..."
-          />
-          <p className="text-sm text-gray-500 mt-1">
-            Character count: {messageContent.length}
-          </p>
-        </div>
-
-        {/* Preview */}
-        {selectedTemplateData && Object.keys(templateVariables).length > 0 && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Preview
-            </label>
-            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                {replaceVariables(messageContent, templateVariables)}
-              </p>
-            </div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
+            <textarea
+              value={messageContent}
+              onChange={(e) => setMessageContent(e.target.value)}
+              rows={5}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+              placeholder="Type your message..."
+            />
           </div>
-        )}
 
-        {/* Send Button */}
-        <button
-          onClick={handleBatchSendSMS}
-          disabled={loading || selectedClients.length === 0 || !messageContent}
-          className="w-full bg-blue-600 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-        >
-          <Send size={20} />
-          {loading ? 'Sending...' : `Send to ${selectedClients.length} Clients`}
-        </button>
+          {messageContent && Object.keys(templateVariables).length > 0 && (
+            <div className="bg-[#1E1E21] p-4 rounded-lg border border-gray-700">
+              <h3 className="text-sm font-medium text-gray-300 mb-2">Preview</h3>
+              <p className="text-gray-400 whitespace-pre-wrap">{replaceVariables(messageContent, templateVariables)}</p>
+            </div>
+          )}
+
+          <button
+            onClick={handleSendSMS}
+            disabled={loading || !selectedClient || !messageContent}
+            className="w-full bg-[#56AF40] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#4a9636] disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? 'Sending...' : 'Send SMS'}
+          </button>
+        </div>
       </div>
     </div>
   );
-};
 
-// Clients Tab Component
-const ClientsTab = ({ clients, loadClients }) => {
-  const [showForm, setShowForm] = useState(false);
-  const [editingClient, setEditingClient] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    status: 'active'
-  });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (editingClient) {
-      const { error } = await supabase
-        .from('clients')
-        .update(formData)
-        .eq('id', editingClient.id);
-
-      if (!error) {
-        alert('Client updated successfully!');
-        resetForm();
-        loadClients();
-      }
-    } else {
-      const { error } = await supabase
-        .from('clients')
-        .insert([formData]);
-
-      if (!error) {
-        alert('Client added successfully!');
-        resetForm();
-        loadClients();
-      }
-    }
-  };
-
-  const handleEdit = (client) => {
-    setEditingClient(client);
-    setFormData({
-      name: client.name,
-      phone: client.phone,
-      email: client.email || '',
-      status: client.status
-    });
-    setShowForm(true);
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this client?')) {
-      const { error } = await supabase
-        .from('clients')
-        .delete()
-        .eq('id', id);
-
-      if (!error) {
-        alert('Client deleted successfully!');
-        loadClients();
-      }
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({ name: '', phone: '', email: '', status: 'active' });
-    setEditingClient(null);
-    setShowForm(false);
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800';
-      case 'blocked':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  return (
+  // Batch Send Tab
+  const BatchSendTab = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-semibold">Clients</h2>
+      <div className="bg-[#2E2F33] rounded-lg p-6 shadow-lg">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-white">Batch Send SMS</h2>
+          <div className="flex gap-2">
+            <button
+              onClick={selectAllClients}
+              className="px-4 py-2 bg-[#1E1E21] text-gray-300 rounded-lg hover:bg-[#56AF40] hover:text-white transition-colors text-sm"
+            >
+              Select All
+            </button>
+            <button
+              onClick={deselectAllClients}
+              className="px-4 py-2 bg-[#1E1E21] text-gray-300 rounded-lg hover:bg-red-600 hover:text-white transition-colors text-sm"
+            >
+              Deselect All
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-6 bg-[#1E1E21] rounded-lg border border-gray-700 max-h-64 overflow-y-auto">
+          <div className="p-4">
+            <h3 className="text-sm font-medium text-gray-300 mb-3">Select Clients ({selectedClients.length} selected)</h3>
+            {clients.filter(c => c.status === 'active').map(client => (
+              <label key={client.id} className="flex items-center gap-3 p-3 hover:bg-[#2E2F33] rounded-lg cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedClients.includes(client.id)}
+                  onChange={() => toggleClientSelection(client.id)}
+                  className="w-4 h-4"
+                />
+                <div>
+                  <p className="text-white font-medium">{client.name}</p>
+                  <p className="text-gray-400 text-sm">{client.phone}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Template (Optional)</label>
+            <select
+              value={selectedTemplate}
+              onChange={(e) => handleTemplateSelect(e.target.value)}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            >
+              <option value="">Choose a template</option>
+              {templates.map(template => (
+                <option key={template.id} value={template.id}>{template.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {selectedTemplate && templates.find(t => t.id === selectedTemplate)?.variables?.length > 0 && (
+            <div className="bg-[#1E1E21] p-4 rounded-lg border border-gray-700">
+              <h3 className="text-sm font-medium text-gray-300 mb-3">Template Variables</h3>
+              {templates.find(t => t.id === selectedTemplate).variables.map(variable => (
+                <div key={variable} className="mb-3">
+                  <label className="block text-sm text-gray-400 mb-1">{variable}</label>
+                  <input
+                    type="text"
+                    value={templateVariables[variable] || ''}
+                    onChange={(e) => setTemplateVariables({...templateVariables, [variable]: e.target.value})}
+                    className="w-full px-3 py-2 bg-[#2E2F33] border border-gray-700 rounded text-white focus:outline-none focus:border-[#56AF40]"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
+            <textarea
+              value={messageContent}
+              onChange={(e) => setMessageContent(e.target.value)}
+              rows={5}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+              placeholder="Type your message..."
+            />
+          </div>
+
+          <button
+            onClick={handleBatchSend}
+            disabled={loading || selectedClients.length === 0 || !messageContent}
+            className="w-full bg-[#56AF40] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#4a9636] disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? 'Sending...' : `Send to ${selectedClients.length} Clients`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Clients Tab
+  const ClientsTab = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold text-white">Clients</h2>
         <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+          onClick={() => setShowClientForm(!showClientForm)}
+          className="flex items-center gap-2 bg-[#56AF40] text-white px-4 py-2 rounded-lg hover:bg-[#4a9636] transition-colors"
         >
           <Plus size={20} />
           Add Client
         </button>
       </div>
 
-      {/* Add/Edit Form */}
-      {showForm && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-xl font-semibold mb-4">
-            {editingClient ? 'Edit Client' : 'Add New Client'}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone *
-              </label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                required
-                placeholder="+1234567890"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status *
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="blocked">Blocked</option>
-              </select>
-            </div>
-
-            <div className="flex gap-2">
+      {showClientForm && (
+        <div className="bg-[#2E2F33] rounded-lg p-6 shadow-lg">
+          <h3 className="text-lg font-semibold text-white mb-4">New Client</h3>
+          <div className="space-y-4">
+            <input
+              type="text"
+              placeholder="Name"
+              value={clientForm.name}
+              onChange={(e) => setClientForm({...clientForm, name: e.target.value})}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            />
+            <input
+              type="tel"
+              placeholder="Phone (E.164 format: +1234567890)"
+              value={clientForm.phone}
+              onChange={(e) => setClientForm({...clientForm, phone: e.target.value})}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            />
+            <input
+              type="email"
+              placeholder="Email (optional)"
+              value={clientForm.email}
+              onChange={(e) => setClientForm({...clientForm, email: e.target.value})}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            />
+            <select
+              value={clientForm.status}
+              onChange={(e) => setClientForm({...clientForm, status: e.target.value})}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="blocked">Blocked</option>
+            </select>
+            <div className="flex gap-3">
               <button
-                type="submit"
-                className="bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 transition-colors"
+                onClick={addClient}
+                className="flex-1 bg-[#56AF40] text-white px-4 py-2 rounded-lg hover:bg-[#4a9636] transition-colors"
               >
-                {editingClient ? 'Update' : 'Add'} Client
+                Add Client
               </button>
               <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-300 text-gray-700 py-2 px-4 rounded-md font-medium hover:bg-gray-400 transition-colors"
+                onClick={() => {
+                  setShowClientForm(false);
+                  setClientForm({ name: '', phone: '', email: '', status: 'active' });
+                }}
+                className="flex-1 bg-[#1E1E21] text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
               >
                 Cancel
               </button>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
-      {/* Clients List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Phone
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Email
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {clients.map((client) => (
-              <tr key={client.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {client.name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {client.phone}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {client.email || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(client.status)}`}>
-                    {client.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={() => handleEdit(client)}
-                    className="text-blue-600 hover:text-blue-900 mr-3"
-                  >
-                    <Edit size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(client.id)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {clients.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No clients found. Add your first client to get started.
+      <div className="grid gap-4">
+        {clients.map(client => (
+          <div key={client.id} className="bg-[#2E2F33] rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-white mb-2">{client.name}</h3>
+                <p className="text-gray-400 mb-1">{client.phone}</p>
+                {client.email && <p className="text-gray-400 mb-2">{client.email}</p>}
+                <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                  client.status === 'active' ? 'bg-[#56AF40] text-white' :
+                  client.status === 'inactive' ? 'bg-gray-600 text-gray-300' :
+                  'bg-red-600 text-white'
+                }`}>
+                  {client.status}
+                </span>
+              </div>
+              <button
+                onClick={() => deleteClient(client.id)}
+                className="text-red-400 hover:text-red-300 transition-colors"
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
-};
 
-// Templates Tab Component
-const TemplatesTab = ({ templates, loadTemplates }) => {
-  const [showForm, setShowForm] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    content: '',
-    variables: ''
-  });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    const variablesArray = formData.variables
-      .split(',')
-      .map(v => v.trim())
-      .filter(v => v.length > 0);
-
-    const templateData = {
-      name: formData.name,
-      content: formData.content,
-      variables: variablesArray
-    };
-
-    if (editingTemplate) {
-      const { error } = await supabase
-        .from('templates')
-        .update(templateData)
-        .eq('id', editingTemplate.id);
-
-      if (!error) {
-        alert('Template updated successfully!');
-        resetForm();
-        loadTemplates();
-      }
-    } else {
-      const { error } = await supabase
-        .from('templates')
-        .insert([templateData]);
-
-      if (!error) {
-        alert('Template added successfully!');
-        resetForm();
-        loadTemplates();
-      }
-    }
-  };
-
-  const handleEdit = (template) => {
-    setEditingTemplate(template);
-    setFormData({
-      name: template.name,
-      content: template.content,
-      variables: (template.variables || []).join(', ')
-    });
-    setShowForm(true);
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this template?')) {
-      const { error } = await supabase
-        .from('templates')
-        .delete()
-        .eq('id', id);
-
-      if (!error) {
-        alert('Template deleted successfully!');
-        loadTemplates();
-      }
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({ name: '', content: '', variables: '' });
-    setEditingTemplate(null);
-    setShowForm(false);
-  };
-
-  return (
+  // Templates Tab
+  const TemplatesTab = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-semibold">Message Templates</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold text-white">Message Templates</h2>
         <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+          onClick={() => setShowTemplateForm(!showTemplateForm)}
+          className="flex items-center gap-2 bg-[#56AF40] text-white px-4 py-2 rounded-lg hover:bg-[#4a9636] transition-colors"
         >
           <Plus size={20} />
           Add Template
         </button>
       </div>
 
-      {/* Add/Edit Form */}
-      {showForm && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-xl font-semibold mb-4">
-            {editingTemplate ? 'Edit Template' : 'Add New Template'}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Template Name *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Message Content *
-              </label>
-              <textarea
-                value={formData.content}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                required
-                rows={4}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Hi {{name}}, your appointment is on {{date}}."
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Use {`{{variable_name}}`} for variables
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Variables (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={formData.variables}
-                onChange={(e) => setFormData({ ...formData, variables: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="name, date, time"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Enter variable names that match those in your template
-              </p>
-            </div>
-
-            <div className="flex gap-2">
+      {showTemplateForm && (
+        <div className="bg-[#2E2F33] rounded-lg p-6 shadow-lg">
+          <h3 className="text-lg font-semibold text-white mb-4">New Template</h3>
+          <div className="space-y-4">
+            <input
+              type="text"
+              placeholder="Template Name"
+              value={templateForm.name}
+              onChange={(e) => setTemplateForm({...templateForm, name: e.target.value})}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            />
+            <textarea
+              placeholder="Message content (use {{variable}} for variables)"
+              value={templateForm.content}
+              onChange={(e) => setTemplateForm({...templateForm, content: e.target.value})}
+              rows={5}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            />
+            <input
+              type="text"
+              placeholder="Variables (comma-separated, e.g., name, date, time)"
+              value={templateForm.variables}
+              onChange={(e) => setTemplateForm({...templateForm, variables: e.target.value})}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            />
+            <div className="flex gap-3">
               <button
-                type="submit"
-                className="bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 transition-colors"
+                onClick={addTemplate}
+                className="flex-1 bg-[#56AF40] text-white px-4 py-2 rounded-lg hover:bg-[#4a9636] transition-colors"
               >
-                {editingTemplate ? 'Update' : 'Add'} Template
+                Add Template
               </button>
               <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-300 text-gray-700 py-2 px-4 rounded-md font-medium hover:bg-gray-400 transition-colors"
+                onClick={() => {
+                  setShowTemplateForm(false);
+                  setTemplateForm({ name: '', content: '', variables: '' });
+                }}
+                className="flex-1 bg-[#1E1E21] text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
               >
                 Cancel
               </button>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
-      {/* Templates List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {templates.map((template) => (
-          <div key={template.id} className="bg-white rounded-lg shadow p-6">
-            <div className="flex justify-between items-start mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleEdit(template)}
-                  className="text-blue-600 hover:text-blue-900"
-                >
-                  <Edit size={18} />
-                </button>
-                <button
-                  onClick={() => handleDelete(template.id)}
-                  className="text-red-600 hover:text-red-900"
-                >
-                  <Trash2 size={18} />
-                </button>
+      <div className="grid gap-4">
+        {templates.map(template => (
+          <div key={template.id} className="bg-[#2E2F33] rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-white mb-2">{template.name}</h3>
+                <p className="text-gray-400 mb-3 whitespace-pre-wrap">{template.content}</p>
+                {template.variables && template.variables.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {template.variables.map(variable => (
+                      <span key={variable} className="px-3 py-1 bg-[#1E1E21] text-[#56AF40] rounded-full text-xs font-medium">
+                        {variable}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
+              <button
+                onClick={() => deleteTemplate(template.id)}
+                className="text-red-400 hover:text-red-300 transition-colors"
+              >
+                <Trash2 size={20} />
+              </button>
             </div>
-            <p className="text-sm text-gray-600 mb-3 whitespace-pre-wrap">{template.content}</p>
-            {template.variables && template.variables.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {template.variables.map((variable, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
-                  >
-                    {variable}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         ))}
       </div>
-      {templates.length === 0 && (
-        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-          No templates found. Add your first template to get started.
-        </div>
-      )}
     </div>
   );
-};
 
-// Message History Tab Component
-const MessageHistoryTab = ({ messages, loadMessages }) => {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'sent':
-        return 'bg-green-100 text-green-800';
-      case 'delivered':
-        return 'bg-blue-100 text-blue-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
-
-  return (
+  // History Tab
+  const HistoryTab = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-semibold">Message History</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold text-white">Message History</h2>
         <button
-          onClick={loadMessages}
-          className="bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 transition-colors"
+          onClick={fetchMessages}
+          className="flex items-center gap-2 bg-[#56AF40] text-white px-4 py-2 rounded-lg hover:bg-[#4a9636] transition-colors"
         >
+          <Clock size={20} />
           Refresh
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Client
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Phone
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Message
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Sent At
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {messages.map((message) => (
-              <tr key={message.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {message.clients?.name || 'Unknown'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {message.phone}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                  {message.content}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(message.status)}`}>
+      <div className="space-y-4">
+        {messages.map(message => (
+          <div key={message.id} className="bg-[#2E2F33] rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="text-lg font-semibold text-white">
+                    {message.clients?.name || 'Unknown Client'}
+                  </h3>
+                  <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
+                    message.status === 'sent' ? 'bg-[#56AF40] text-white' :
+                    message.status === 'delivered' ? 'bg-blue-600 text-white' :
+                    message.status === 'failed' ? 'bg-red-600 text-white' :
+                    'bg-gray-600 text-gray-300'
+                  }`}>
+                    {message.status === 'sent' && <CheckCircle size={14} />}
+                    {message.status === 'delivered' && <CheckCircle size={14} />}
+                    {message.status === 'failed' && <XCircle size={14} />}
                     {message.status}
                   </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {message.sent_at ? formatDate(message.sent_at) : '-'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+                <p className="text-gray-400 text-sm mb-1">{message.phone}</p>
+                <p className="text-gray-300 mb-2 whitespace-pre-wrap">{message.content}</p>
+                <p className="text-gray-500 text-xs">
+                  {new Date(message.created_at).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
         {messages.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No messages found.
+          <div className="bg-[#2E2F33] rounded-lg p-12 text-center">
+            <MessageSquare size={48} className="mx-auto text-gray-600 mb-4" />
+            <p className="text-gray-400">No messages sent yet</p>
           </div>
         )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex h-screen bg-[#1E1E21] overflow-hidden">
+      <SidebarNav />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="bg-[#2E2F33] border-b border-gray-700 px-8 py-4">
+          <h1 className="text-2xl font-bold text-white">
+            {activeTab === 'send' && 'Send SMS'}
+            {activeTab === 'batch' && 'Batch Send'}
+            {activeTab === 'clients' && 'Clients Management'}
+            {activeTab === 'templates' && 'Message Templates'}
+            {activeTab === 'history' && 'Message History'}
+          </h1>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto p-8">
+          {activeTab === 'send' && <SendSMSTab />}
+          {activeTab === 'batch' && <BatchSendTab />}
+          {activeTab === 'clients' && <ClientsTab />}
+          {activeTab === 'templates' && <TemplatesTab />}
+          {activeTab === 'history' && <HistoryTab />}
+        </div>
       </div>
     </div>
   );
