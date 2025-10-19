@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Send, Users, MessageSquare, Plus, Trash2, Edit, Menu, X, Clock, CheckCircle, XCircle, MessageCircle, Upload, Download } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { sendSMS } from './twilioService';
@@ -11,6 +11,20 @@ const App = () => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Predefined variables for easy insertion
+  const predefinedVariables = [
+    { name: 'name', label: 'Name', icon: '👤' },
+    { name: 'phone', label: 'Phone', icon: '📱' },
+    { name: 'email', label: 'Email', icon: '📧' },
+    { name: 'date', label: 'Date', icon: '📅' },
+    { name: 'time', label: 'Time', icon: '🕐' },
+    { name: 'appointment', label: 'Appointment', icon: '📆' },
+    { name: 'service', label: 'Service', icon: '💼' },
+    { name: 'price', label: 'Price', icon: '💰' },
+    { name: 'location', label: 'Location', icon: '📍' },
+    { name: 'link', label: 'Link', icon: '🔗' }
+  ];
 
   // Form states
   const [selectedClient, setSelectedClient] = useState('');
@@ -29,46 +43,50 @@ const App = () => {
 
   // Import file ref
   const fileInputRef = useRef(null);
+  
+  // Textarea refs for variable insertion
+  const messageTextareaRef = useRef(null);
+  const templateContentRef = useRef(null);
 
   useEffect(() => {
     fetchClients();
     fetchTemplates();
     fetchMessages();
-  }, []);
+  }, [fetchClients, fetchTemplates, fetchMessages]);
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     const { data } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
     setClients(data || []);
-  };
+  }, []);
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     const { data } = await supabase.from('templates').select('*').order('created_at', { ascending: false });
     setTemplates(data || []);
-  };
+  }, []);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     const { data } = await supabase
       .from('messages')
       .select('*, clients(name, phone)')
       .order('created_at', { ascending: false });
     setMessages(data || []);
-  };
+  }, []);
 
-  const addClient = async () => {
+  const addClient = useCallback(async () => {
     if (!clientForm.name || !clientForm.phone) return;
     await supabase.from('clients').insert([clientForm]);
     setClientForm({ name: '', phone: '', email: '', status: 'active' });
     setShowClientForm(false);
     fetchClients();
-  };
+  }, [clientForm, fetchClients]);
 
-  const deleteClient = async (id) => {
+  const deleteClient = useCallback(async (id) => {
     await supabase.from('clients').delete().eq('id', id);
     fetchClients();
-  };
+  }, [fetchClients]);
 
   // Export clients to Excel
-  const exportClients = () => {
+  const exportClients = useCallback(() => {
     // Map client data to match the template structure
     const exportData = clients.map(client => {
       const nameParts = client.name.split(' ');
@@ -117,10 +135,10 @@ const App = () => {
 
     // Generate and download file
     XLSX.writeFile(wb, `clients_export_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
+  }, [clients]);
 
   // Import clients from Excel
-  const handleImport = (e) => {
+  const handleImport = useCallback((e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -195,23 +213,23 @@ const App = () => {
     };
 
     reader.readAsArrayBuffer(file);
-  };
+  }, [fetchClients]);
 
-  const addTemplate = async () => {
+  const addTemplate = useCallback(async () => {
     if (!templateForm.name || !templateForm.content) return;
     const variables = templateForm.variables.split(',').map(v => v.trim()).filter(v => v);
     await supabase.from('templates').insert([{ ...templateForm, variables }]);
     setTemplateForm({ name: '', content: '', variables: '' });
     setShowTemplateForm(false);
     fetchTemplates();
-  };
+  }, [templateForm, fetchTemplates]);
 
-  const deleteTemplate = async (id) => {
+  const deleteTemplate = useCallback(async (id) => {
     await supabase.from('templates').delete().eq('id', id);
     fetchTemplates();
-  };
+  }, [fetchTemplates]);
 
-  const handleTemplateSelect = (templateId) => {
+  const handleTemplateSelect = useCallback((templateId) => {
     setSelectedTemplate(templateId);
     const template = templates.find(t => t.id === templateId);
     if (template) {
@@ -220,15 +238,70 @@ const App = () => {
       template.variables?.forEach(v => vars[v] = '');
       setTemplateVariables(vars);
     }
-  };
+  }, [templates]);
 
-  const replaceVariables = (content, variables) => {
+  const replaceVariables = useCallback((content, variables) => {
     let result = content;
     Object.keys(variables).forEach(key => {
       result = result.replace(new RegExp(`{{${key}}}`, 'g'), variables[key]);
     });
     return result;
-  };
+  }, []);
+
+  const getPreviewMessage = useCallback(() => {
+    if (!messageContent) return '';
+    return replaceVariables(messageContent, templateVariables);
+  }, [messageContent, templateVariables, replaceVariables]);
+
+  // Insert variable into textarea at cursor position
+  const insertVariable = useCallback((variableName, textareaRef) => {
+    if (!textareaRef.current) return;
+    
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    const variable = `{{${variableName}}}`;
+    
+    const newText = before + variable + after;
+    const newCursorPos = start + variable.length;
+    
+    // Update the appropriate state based on which textarea
+    if (textarea.name === 'messageContent') {
+      setMessageContent(newText);
+    } else if (textarea.name === 'templateContent') {
+      setTemplateForm(prev => ({ ...prev, content: newText }));
+    }
+    
+    // Set cursor position after state update
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  }, []);
+
+  // Handle drag start
+  const handleDragStart = useCallback((e, variableName) => {
+    e.dataTransfer.setData('variable', variableName);
+    e.dataTransfer.effectAllowed = 'copy';
+  }, []);
+
+  // Handle drop
+  const handleDrop = useCallback((e, textareaRef) => {
+    e.preventDefault();
+    const variableName = e.dataTransfer.getData('variable');
+    if (variableName) {
+      insertVariable(variableName, textareaRef);
+    }
+  }, [insertVariable]);
+
+  // Prevent default drag over
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }, []);
 
   const handleSendSMS = async () => {
     if (!selectedClient || !messageContent) return;
@@ -338,6 +411,29 @@ const App = () => {
     </button>
   );
 
+  // Variable Pills Component
+  const VariablePills = ({ onInsert, textareaRef }) => (
+    <div className="bg-[#1E1E21] p-4 rounded-lg border border-gray-700">
+      <h3 className="text-sm font-medium text-gray-300 mb-3">📌 Quick Variables (Drag or Click)</h3>
+      <div className="flex flex-wrap gap-2">
+        {predefinedVariables.map(variable => (
+          <button
+            key={variable.name}
+            draggable
+            onDragStart={(e) => handleDragStart(e, variable.name)}
+            onClick={() => insertVariable(variable.name, textareaRef)}
+            className="flex items-center gap-2 px-3 py-2 bg-[#2E2F33] text-white rounded-lg border border-gray-600 hover:bg-[#56AF40] hover:border-[#56AF40] transition-all cursor-move"
+            title={`Click to insert or drag & drop {{${variable.name}}}`}
+          >
+            <span>{variable.icon}</span>
+            <span className="text-sm">{variable.label}</span>
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-gray-500 mt-3">💡 Tip: Click to insert at cursor, or drag & drop into the text area below</p>
+    </div>
+  );
+
   // Send SMS Tab
   const SendSMSTab = () => (
     <div className="space-y-6">
@@ -390,21 +486,28 @@ const App = () => {
             </div>
           )}
 
+          <VariablePills textareaRef={messageTextareaRef} />
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
             <textarea
+              ref={messageTextareaRef}
+              name="messageContent"
               value={messageContent}
               onChange={(e) => setMessageContent(e.target.value)}
+              onDrop={(e) => handleDrop(e, messageTextareaRef)}
+              onDragOver={handleDragOver}
               rows={5}
-              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
-              placeholder="Type your message..."
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40] transition-colors"
+              placeholder="Type your message or drag variables here..."
             />
+            <p className="text-xs text-gray-500 mt-1">💡 Use {{`{variable}`}} syntax or drag from above</p>
           </div>
 
           {messageContent && Object.keys(templateVariables).length > 0 && (
             <div className="bg-[#1E1E21] p-4 rounded-lg border border-gray-700">
               <h3 className="text-sm font-medium text-gray-300 mb-2">Preview</h3>
-              <p className="text-gray-400 whitespace-pre-wrap">{replaceVariables(messageContent, templateVariables)}</p>
+              <p className="text-gray-400 whitespace-pre-wrap">{getPreviewMessage()}</p>
             </div>
           )}
 
@@ -494,15 +597,22 @@ const App = () => {
             </div>
           )}
 
+          <VariablePills textareaRef={messageTextareaRef} />
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
             <textarea
+              ref={messageTextareaRef}
+              name="messageContent"
               value={messageContent}
               onChange={(e) => setMessageContent(e.target.value)}
+              onDrop={(e) => handleDrop(e, messageTextareaRef)}
+              onDragOver={handleDragOver}
               rows={5}
-              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
-              placeholder="Type your message..."
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40] transition-colors"
+              placeholder="Type your message or drag variables here..."
             />
+            <p className="text-xs text-gray-500 mt-1">💡 Use {{`{variable}`}} syntax or drag from above</p>
           </div>
 
           <button
@@ -663,16 +773,27 @@ const App = () => {
               onChange={(e) => setTemplateForm({...templateForm, name: e.target.value})}
               className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
             />
-            <textarea
-              placeholder="Message content (use {{variable}} for variables)"
-              value={templateForm.content}
-              onChange={(e) => setTemplateForm({...templateForm, content: e.target.value})}
-              rows={5}
-              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
-            />
+            
+            <VariablePills textareaRef={templateContentRef} />
+            
+            <div>
+              <textarea
+                ref={templateContentRef}
+                name="templateContent"
+                placeholder="Message content - drag variables from above or type {{variable}}"
+                value={templateForm.content}
+                onChange={(e) => setTemplateForm({...templateForm, content: e.target.value})}
+                onDrop={(e) => handleDrop(e, templateContentRef)}
+                onDragOver={handleDragOver}
+                rows={5}
+                className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40] transition-colors"
+              />
+              <p className="text-xs text-gray-500 mt-1">💡 Variables used will be auto-detected</p>
+            </div>
+            
             <input
               type="text"
-              placeholder="Variables (comma-separated, e.g., name, date, time)"
+              placeholder="Variables (optional - auto-detected from {{variable}} syntax)"
               value={templateForm.variables}
               onChange={(e) => setTemplateForm({...templateForm, variables: e.target.value})}
               className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
