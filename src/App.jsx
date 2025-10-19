@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Send, Users, MessageSquare, Plus, Trash2, Edit, Menu, X, Clock, CheckCircle, XCircle, MessageCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, Users, MessageSquare, Plus, Trash2, Edit, Menu, X, Clock, CheckCircle, XCircle, MessageCircle, Upload, Download } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { sendSMS } from './twilioService';
+import * as XLSX from 'xlsx';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('send');
@@ -25,6 +26,9 @@ const App = () => {
   // Template form
   const [templateForm, setTemplateForm] = useState({ name: '', content: '', variables: '' });
   const [showTemplateForm, setShowTemplateForm] = useState(false);
+
+  // Import file ref
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchClients();
@@ -61,6 +65,136 @@ const App = () => {
   const deleteClient = async (id) => {
     await supabase.from('clients').delete().eq('id', id);
     fetchClients();
+  };
+
+  // Export clients to Excel
+  const exportClients = () => {
+    // Map client data to match the template structure
+    const exportData = clients.map(client => {
+      const nameParts = client.name.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      return {
+        'Прізвище': lastName,
+        "Ім'я": firstName,
+        'Email': client.email || '',
+        'Телефон': client.phone || '',
+        'День народження': '',
+        'Усього візитів': '',
+        'Отриманий дохід': '',
+        'Коментар': `Status: ${client.status}`,
+        'Середній чек всього': '',
+        'Дата створення': new Date(client.created_at).toLocaleDateString('uk-UA'),
+        'ui.customers.address_city': '',
+        'ui.customers.address_region': '',
+        'ui.customers.address_postal_code': '',
+        'ui.customers.address_line_one': '',
+        'ui.customers.address_line_two': '',
+        'ui.customers.company_name': '',
+        'ui.customers.vat_number': ''
+      };
+    });
+
+    // Create workbook and worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Clients');
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 15 }, // Last name
+      { wch: 15 }, // First name
+      { wch: 25 }, // Email
+      { wch: 15 }, // Phone
+      { wch: 12 }, // Birthday
+      { wch: 12 }, // Total visits
+      { wch: 15 }, // Revenue
+      { wch: 20 }, // Comment
+      { wch: 15 }, // Average check
+      { wch: 12 }, // Created date
+    ];
+
+    // Generate and download file
+    XLSX.writeFile(wb, `clients_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  // Import clients from Excel
+  const handleImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        let imported = 0;
+        let skipped = 0;
+
+        for (const row of jsonData) {
+          const firstName = row["Ім'я"] || '';
+          const lastName = row['Прізвище'] || '';
+          const name = `${firstName} ${lastName}`.trim();
+          const phone = row['Телефон'] || '';
+          const email = row['Email'] || '';
+
+          // Skip if no name or phone
+          if (!name || !phone) {
+            skipped++;
+            continue;
+          }
+
+          // Check if client already exists
+          const { data: existing } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('phone', phone)
+            .single();
+
+          if (existing) {
+            // Update existing client
+            await supabase
+              .from('clients')
+              .update({
+                name,
+                email: email || null,
+                updated_at: new Date().toISOString()
+              })
+              .eq('phone', phone);
+            imported++;
+          } else {
+            // Insert new client
+            await supabase
+              .from('clients')
+              .insert({
+                name,
+                phone,
+                email: email || null,
+                status: 'active'
+              });
+            imported++;
+          }
+        }
+
+        alert(`Import complete!\n✅ Imported/Updated: ${imported}\n⚠️ Skipped: ${skipped}`);
+        fetchClients();
+        
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      } catch (error) {
+        console.error('Import error:', error);
+        alert('Error importing file: ' + error.message);
+      }
+    };
+
+    reader.readAsArrayBuffer(file);
   };
 
   const addTemplate = async () => {
@@ -388,13 +522,36 @@ const App = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-white">Clients</h2>
-        <button
-          onClick={() => setShowClientForm(!showClientForm)}
-          className="flex items-center gap-2 bg-[#56AF40] text-white px-4 py-2 rounded-lg hover:bg-[#4a9636] transition-colors"
-        >
-          <Plus size={20} />
-          Add Client
-        </button>
+        <div className="flex gap-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx, .xls"
+            onChange={handleImport}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 bg-[#1E1E21] text-gray-300 px-4 py-2 rounded-lg hover:bg-[#56AF40] hover:text-white transition-colors"
+          >
+            <Upload size={20} />
+            Import
+          </button>
+          <button
+            onClick={exportClients}
+            className="flex items-center gap-2 bg-[#1E1E21] text-gray-300 px-4 py-2 rounded-lg hover:bg-[#56AF40] hover:text-white transition-colors"
+          >
+            <Download size={20} />
+            Export
+          </button>
+          <button
+            onClick={() => setShowClientForm(!showClientForm)}
+            className="flex items-center gap-2 bg-[#56AF40] text-white px-4 py-2 rounded-lg hover:bg-[#4a9636] transition-colors"
+          >
+            <Plus size={20} />
+            Add Client
+          </button>
+        </div>
       </div>
 
       {showClientForm && (
