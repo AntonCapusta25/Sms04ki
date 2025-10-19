@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Users, MessageSquare, Plus, Trash2, Menu, X, Clock, CheckCircle, XCircle, MessageCircle, Upload, Download } from 'lucide-react';
+import { Send, Users, MessageSquare, Plus, Trash2, Menu, X, Clock, CheckCircle, XCircle, MessageCircle, Upload, Download, Tags } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { sendSMS } from './twilioService';
 import * as XLSX from 'xlsx';
@@ -84,6 +84,7 @@ const SidebarNav = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) =>
       <NavItem icon={<Send size={20} />} label="Send SMS" active={activeTab === 'send'} onClick={() => setActiveTab('send')} collapsed={!sidebarOpen} />
       <NavItem icon={<MessageCircle size={20} />} label="Batch Send" active={activeTab === 'batch'} onClick={() => setActiveTab('batch')} collapsed={!sidebarOpen} />
       <NavItem icon={<Users size={20} />} label="Clients" active={activeTab === 'clients'} onClick={() => setActiveTab('clients')} collapsed={!sidebarOpen} />
+      <NavItem icon={<Tags size={20} />} label="Segments" active={activeTab === 'segments'} onClick={() => setActiveTab('segments')} collapsed={!sidebarOpen} />
       <NavItem icon={<MessageSquare size={20} />} label="Templates" active={activeTab === 'templates'} onClick={() => setActiveTab('templates')} collapsed={!sidebarOpen} />
       <NavItem icon={<Clock size={20} />} label="History" active={activeTab === 'history'} onClick={() => setActiveTab('history')} collapsed={!sidebarOpen} />
     </nav>
@@ -208,10 +209,13 @@ const SendSMSTab = ({
 const BatchSendTab = ({
   clients,
   templates,
+  segments,
   selectedClients,
   toggleClientSelection,
   selectAllClients,
   deselectAllClients,
+  selectedSegment,
+  setSelectedSegment,
   selectedTemplate,
   handleTemplateSelect,
   messageContent,
@@ -219,10 +223,33 @@ const BatchSendTab = ({
   templateVariables,
   setTemplateVariables,
   loading,
-  handleBatchSend
+  handleBatchSend,
+  getClientsBySegment
 }) => {
   const insertVariable = (varName) => {
     setMessageContent(prev => prev + `{{${varName}}}`);
+  };
+
+  const selectSegment = (segmentId) => {
+    if (segmentId) {
+      const segmentClients = getClientsBySegment(segmentId).map(c => c.id);
+      setSelectedSegment(segmentId);
+      // Replace current selection with segment clients
+      const currentSelected = [...selectedClients];
+      segmentClients.forEach(id => {
+        if (!currentSelected.includes(id)) {
+          currentSelected.push(id);
+        }
+      });
+      // Update through parent via toggleClientSelection
+      segmentClients.forEach(id => {
+        if (!selectedClients.includes(id)) {
+          toggleClientSelection(id);
+        }
+      });
+    } else {
+      setSelectedSegment('');
+    }
   };
 
   return (
@@ -231,6 +258,23 @@ const BatchSendTab = ({
         <h2 className="text-xl font-semibold mb-6 text-white">Batch Send SMS</h2>
         
         <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Quick Select by Segment</label>
+            <select
+              value={selectedSegment}
+              onChange={(e) => selectSegment(e.target.value)}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            >
+              <option value="">Select a segment...</option>
+              {segments.map(segment => (
+                <option key={segment.id} value={segment.id}>
+                  {segment.name} ({getClientsBySegment(segment.id).length} clients)
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">💡 Select a segment to quickly add those clients</p>
+          </div>
+
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className="block text-sm font-medium text-gray-300">Select Clients</label>
@@ -628,6 +672,171 @@ const HistoryTab = ({ messages }) => (
 );
 
 // ============================================
+// SEGMENTS TAB COMPONENT (OUTSIDE APP)
+// ============================================
+const SegmentsTab = ({
+  segments,
+  clients,
+  showSegmentForm,
+  setShowSegmentForm,
+  segmentForm,
+  setSegmentForm,
+  addSegment,
+  deleteSegment,
+  selectedSegment,
+  setSelectedSegment,
+  addClientToSegment,
+  removeClientFromSegment,
+  getClientsBySegment
+}) => {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold text-white">Client Segments</h2>
+        <button
+          onClick={() => setShowSegmentForm(!showSegmentForm)}
+          className="flex items-center gap-2 bg-[#56AF40] text-white px-4 py-2 rounded-lg hover:bg-[#4a9636] transition-colors"
+        >
+          <Plus size={20} />
+          Create Segment
+        </button>
+      </div>
+
+      {showSegmentForm && (
+        <div className="bg-[#2E2F33] rounded-lg p-6 shadow-lg">
+          <h3 className="text-lg font-semibold text-white mb-4">New Segment</h3>
+          <div className="space-y-4">
+            <input
+              type="text"
+              placeholder="Segment Name (e.g., VIP Clients, New Clients)"
+              value={segmentForm.name}
+              onChange={(e) => setSegmentForm({...segmentForm, name: e.target.value})}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            />
+            <textarea
+              placeholder="Description (e.g., Clients who spent over $1000)"
+              value={segmentForm.description}
+              onChange={(e) => setSegmentForm({...segmentForm, description: e.target.value})}
+              rows={3}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            />
+            <input
+              type="text"
+              placeholder="Tags (comma-separated: vip, premium, botox)"
+              value={segmentForm.tags}
+              onChange={(e) => setSegmentForm({...segmentForm, tags: e.target.value})}
+              className="w-full px-4 py-3 bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={addSegment}
+                className="flex-1 bg-[#56AF40] text-white px-4 py-2 rounded-lg hover:bg-[#4a9636] transition-colors"
+              >
+                Create Segment
+              </button>
+              <button
+                onClick={() => {
+                  setShowSegmentForm(false);
+                  setSegmentForm({ name: '', description: '', tags: '' });
+                }}
+                className="flex-1 bg-[#1E1E21] text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-4">
+        {segments.map(segment => (
+          <div key={segment.id} className="bg-[#2E2F33] rounded-lg p-6 shadow-lg">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-white mb-2">{segment.name}</h3>
+                {segment.description && (
+                  <p className="text-gray-400 text-sm mb-3">{segment.description}</p>
+                )}
+                {segment.tags?.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {segment.tags.map((tag, idx) => (
+                      <span key={idx} className="px-3 py-1 bg-[#56AF40]/20 text-[#56AF40] rounded-full text-sm">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-gray-500 text-sm">
+                  {getClientsBySegment(segment.id).length} clients in this segment
+                </p>
+              </div>
+              <button
+                onClick={() => deleteSegment(segment.id)}
+                className="text-red-400 hover:text-red-300 transition-colors"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+
+            {/* Manage Clients in Segment */}
+            <div className="border-t border-gray-700 pt-4">
+              <button
+                onClick={() => setSelectedSegment(selectedSegment === segment.id ? '' : segment.id)}
+                className="text-[#56AF40] hover:text-[#4a9636] text-sm font-medium"
+              >
+                {selectedSegment === segment.id ? 'Hide' : 'Manage'} Clients
+              </button>
+
+              {selectedSegment === segment.id && (
+                <div className="mt-4 space-y-3">
+                  <div className="bg-[#1E1E21] rounded-lg p-4 max-h-64 overflow-y-auto">
+                    <h4 className="text-sm font-medium text-gray-300 mb-3">Add Clients to Segment</h4>
+                    {clients.filter(c => c.status === 'active').map(client => {
+                      const isInSegment = getClientsBySegment(segment.id).some(c => c.id === client.id);
+                      return (
+                        <label key={client.id} className="flex items-center justify-between p-2 hover:bg-[#2E2F33] rounded cursor-pointer">
+                          <span className="text-white">{client.name} - {client.phone}</span>
+                          <input
+                            type="checkbox"
+                            checked={isInSegment}
+                            onChange={() => {
+                              if (isInSegment) {
+                                removeClientFromSegment(client.id, segment.id);
+                              } else {
+                                addClientToSegment(client.id, segment.id);
+                              }
+                            }}
+                            className="ml-3"
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {segments.length === 0 && (
+        <div className="bg-[#2E2F33] rounded-lg p-12 text-center">
+          <Tags size={48} className="mx-auto text-gray-600 mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">No Segments Yet</h3>
+          <p className="text-gray-400 mb-4">Create your first segment to organize clients</p>
+          <button
+            onClick={() => setShowSegmentForm(true)}
+            className="bg-[#56AF40] text-white px-6 py-2 rounded-lg hover:bg-[#4a9636] transition-colors"
+          >
+            Create First Segment
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================
 // MAIN APP COMPONENT
 // ============================================
 const App = () => {
@@ -635,12 +844,14 @@ const App = () => {
   const [clients, setClients] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [segments, setSegments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Form states
   const [selectedClient, setSelectedClient] = useState('');
   const [selectedClients, setSelectedClients] = useState([]);
+  const [selectedSegment, setSelectedSegment] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [messageContent, setMessageContent] = useState('');
   const [templateVariables, setTemplateVariables] = useState({});
@@ -653,6 +864,10 @@ const App = () => {
   const [templateForm, setTemplateForm] = useState({ name: '', content: '', variables: '' });
   const [showTemplateForm, setShowTemplateForm] = useState(false);
 
+  // Segment form
+  const [segmentForm, setSegmentForm] = useState({ name: '', description: '', tags: '' });
+  const [showSegmentForm, setShowSegmentForm] = useState(false);
+
   // Import file ref
   const fileInputRef = useRef(null);
 
@@ -660,11 +875,28 @@ const App = () => {
     fetchClients();
     fetchTemplates();
     fetchMessages();
+    fetchSegments();
   }, []);
 
   const fetchClients = async () => {
-    const { data } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
-    setClients(data || []);
+    const { data } = await supabase
+      .from('clients')
+      .select(`
+        *,
+        client_segments(
+          segment_id,
+          segments(id, name, tags)
+        )
+      `)
+      .order('created_at', { ascending: false });
+    
+    // Transform the data to have a cleaner segments array
+    const clientsWithSegments = data?.map(client => ({
+      ...client,
+      segments: client.client_segments?.map(cs => cs.segments) || []
+    })) || [];
+    
+    setClients(clientsWithSegments);
   };
 
   const fetchTemplates = async () => {
@@ -678,6 +910,43 @@ const App = () => {
       .select('*, clients(name, phone)')
       .order('created_at', { ascending: false });
     setMessages(data || []);
+  };
+
+  const fetchSegments = async () => {
+    const { data } = await supabase.from('segments').select('*').order('created_at', { ascending: false });
+    setSegments(data || []);
+  };
+
+  const addSegment = async () => {
+    if (!segmentForm.name) return;
+    const tags = segmentForm.tags.split(',').map(t => t.trim()).filter(t => t);
+    await supabase.from('segments').insert([{ ...segmentForm, tags }]);
+    setSegmentForm({ name: '', description: '', tags: '' });
+    setShowSegmentForm(false);
+    fetchSegments();
+  };
+
+  const deleteSegment = async (id) => {
+    await supabase.from('segments').delete().eq('id', id);
+    fetchSegments();
+  };
+
+  const addClientToSegment = async (clientId, segmentId) => {
+    await supabase.from('client_segments').insert([{ client_id: clientId, segment_id: segmentId }]);
+    fetchClients();
+  };
+
+  const removeClientFromSegment = async (clientId, segmentId) => {
+    await supabase.from('client_segments').delete()
+      .eq('client_id', clientId)
+      .eq('segment_id', segmentId);
+    fetchClients();
+  };
+
+  const getClientsBySegment = (segmentId) => {
+    return clients.filter(client => 
+      client.segments?.some(seg => seg.id === segmentId)
+    );
   };
 
   const addClient = async () => {
@@ -938,6 +1207,7 @@ const App = () => {
             {activeTab === 'send' && 'Send SMS'}
             {activeTab === 'batch' && 'Batch Send'}
             {activeTab === 'clients' && 'Clients Management'}
+            {activeTab === 'segments' && 'Client Segments'}
             {activeTab === 'templates' && 'Message Templates'}
             {activeTab === 'history' && 'Message History'}
           </h1>
@@ -965,10 +1235,13 @@ const App = () => {
             <BatchSendTab
               clients={clients}
               templates={templates}
+              segments={segments}
               selectedClients={selectedClients}
               toggleClientSelection={toggleClientSelection}
               selectAllClients={selectAllClients}
               deselectAllClients={deselectAllClients}
+              selectedSegment={selectedSegment}
+              setSelectedSegment={setSelectedSegment}
               selectedTemplate={selectedTemplate}
               handleTemplateSelect={handleTemplateSelect}
               messageContent={messageContent}
@@ -977,6 +1250,7 @@ const App = () => {
               setTemplateVariables={setTemplateVariables}
               loading={loading}
               handleBatchSend={handleBatchSend}
+              getClientsBySegment={getClientsBySegment}
             />
           )}
           
@@ -992,6 +1266,24 @@ const App = () => {
               exportClients={exportClients}
               handleImport={handleImport}
               fileInputRef={fileInputRef}
+            />
+          )}
+          
+          {activeTab === 'segments' && (
+            <SegmentsTab
+              segments={segments}
+              clients={clients}
+              showSegmentForm={showSegmentForm}
+              setShowSegmentForm={setShowSegmentForm}
+              segmentForm={segmentForm}
+              setSegmentForm={setSegmentForm}
+              addSegment={addSegment}
+              deleteSegment={deleteSegment}
+              selectedSegment={selectedSegment}
+              setSelectedSegment={setSelectedSegment}
+              addClientToSegment={addClientToSegment}
+              removeClientFromSegment={removeClientFromSegment}
+              getClientsBySegment={getClientsBySegment}
             />
           )}
           
