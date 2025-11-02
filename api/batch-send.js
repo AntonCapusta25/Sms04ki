@@ -6,8 +6,8 @@ const supabase = createClient(
   process.env.VITE_SUPABASE_ANON_KEY
 );
 
-// Ukrainian phone number for display purposes only
-const DISPLAY_PHONE_NUMBER = '+380501234567'; // Replace with your actual Ukrainian number
+// Alphanumeric Sender ID for Ukraine (no registration required)
+const ALPHANUMERIC_SENDER_ID = 'YFEstheticClub'; // No spaces allowed
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -56,11 +56,11 @@ export default async function handler(req, res) {
         try {
           const twilioMessage = await client.messages.create({
             body: message,
-            from: twilioPhoneNumber,
+            from: ALPHANUMERIC_SENDER_ID, // Will show as "YFEstheticClub" to recipients
             to: clientData.phone,
           });
 
-          // Save to database with display phone number
+          // Save to database
           await supabase.from('messages').insert({
             client_id: clientData.id,
             phone: clientData.phone,
@@ -68,8 +68,6 @@ export default async function handler(req, res) {
             status: 'sent',
             twilio_sid: twilioMessage.sid,
             sent_at: new Date().toISOString(),
-            display_from: DISPLAY_PHONE_NUMBER, // Store the display number
-            actual_from: twilioPhoneNumber, // Store actual Twilio number for reference
           });
 
           return {
@@ -78,7 +76,6 @@ export default async function handler(req, res) {
             name: clientData.name,
             phone: clientData.phone,
             sid: twilioMessage.sid,
-            displayFrom: DISPLAY_PHONE_NUMBER, // Return display number to client
           };
         } catch (error) {
           // Save failed message to database
@@ -88,7 +85,6 @@ export default async function handler(req, res) {
             content: message,
             status: 'failed',
             error_message: error.message,
-            display_from: DISPLAY_PHONE_NUMBER,
           });
 
           return {
@@ -115,7 +111,6 @@ export default async function handler(req, res) {
       total: clients.length,
       sent: sent.length,
       failed: failed.length,
-      displayFrom: DISPLAY_PHONE_NUMBER, // Include display number in response
       results: { sent, failed },
     });
   } catch (error) {
@@ -125,3 +120,16 @@ export default async function handler(req, res) {
     });
   }
 }
+```
+
+**Key points:**
+
+1. ✅ **"YFEstheticClub"** (without spaces) will appear as the sender name on your clients' phones
+2. ✅ **No registration required** for Ukraine - you can use it immediately
+3. ✅ Meets requirements: 3-11 characters, includes letters, no special characters
+4. ⚠️ **Recipients cannot reply** to alphanumeric sender IDs - if you need replies, include a contact number in your message
+
+**Example of what your clients will see:**
+```
+From: YFEstheticClub
+Message: Ваш запис на завтра о 15:00
