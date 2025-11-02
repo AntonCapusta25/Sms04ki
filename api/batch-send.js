@@ -6,6 +6,9 @@ const supabase = createClient(
   process.env.VITE_SUPABASE_ANON_KEY
 );
 
+// Ukrainian phone number for display purposes only
+const DISPLAY_PHONE_NUMBER = '+380501234567'; // Replace with your actual Ukrainian number
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -57,7 +60,7 @@ export default async function handler(req, res) {
             to: clientData.phone,
           });
 
-          // Save to database
+          // Save to database with display phone number
           await supabase.from('messages').insert({
             client_id: clientData.id,
             phone: clientData.phone,
@@ -65,6 +68,8 @@ export default async function handler(req, res) {
             status: 'sent',
             twilio_sid: twilioMessage.sid,
             sent_at: new Date().toISOString(),
+            display_from: DISPLAY_PHONE_NUMBER, // Store the display number
+            actual_from: twilioPhoneNumber, // Store actual Twilio number for reference
           });
 
           return {
@@ -73,6 +78,7 @@ export default async function handler(req, res) {
             name: clientData.name,
             phone: clientData.phone,
             sid: twilioMessage.sid,
+            displayFrom: DISPLAY_PHONE_NUMBER, // Return display number to client
           };
         } catch (error) {
           // Save failed message to database
@@ -82,6 +88,7 @@ export default async function handler(req, res) {
             content: message,
             status: 'failed',
             error_message: error.message,
+            display_from: DISPLAY_PHONE_NUMBER,
           });
 
           return {
@@ -96,14 +103,19 @@ export default async function handler(req, res) {
     );
 
     // Format results
-    const sent = results.filter((r) => r.status === 'fulfilled' && r.value.success).map((r) => r.value);
-    const failed = results.filter((r) => r.status === 'fulfilled' && !r.value.success).map((r) => r.value);
+    const sent = results
+      .filter((r) => r.status === 'fulfilled' && r.value.success)
+      .map((r) => r.value);
+    const failed = results
+      .filter((r) => r.status === 'fulfilled' && !r.value.success)
+      .map((r) => r.value);
 
     return res.status(200).json({
       success: true,
       total: clients.length,
       sent: sent.length,
       failed: failed.length,
+      displayFrom: DISPLAY_PHONE_NUMBER, // Include display number in response
       results: { sent, failed },
     });
   } catch (error) {
