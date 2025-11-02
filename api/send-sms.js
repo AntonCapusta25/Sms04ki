@@ -1,7 +1,6 @@
 import twilio from 'twilio';
 
-// Alphanumeric Sender ID for Ukraine (no registration required)
-const ALPHANUMERIC_SENDER_ID = 'YFEstheticClub'; // No spaces allowed
+const ALPHANUMERIC_SENDER_ID = 'YFEsthetic'; // Without spaces for testing
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -34,7 +33,7 @@ export default async function handler(req, res) {
     
     const twilioMessage = await client.messages.create({
       body: message,
-      from: ALPHANUMERIC_SENDER_ID, // Will show as "YFEstheticClub" to recipients
+      from: ALPHANUMERIC_SENDER_ID,
       to: to,
     });
 
@@ -42,11 +41,14 @@ export default async function handler(req, res) {
       success: true,
       sid: twilioMessage.sid,
       status: twilioMessage.status,
+      sentFrom: ALPHANUMERIC_SENDER_ID,
     });
   } catch (error) {
     console.error('Twilio Error:', error);
     return res.status(400).json({
       error: error.message || 'Failed to send SMS',
+      code: error.code,
+      moreInfo: error.moreInfo,
     });
   }
 }
