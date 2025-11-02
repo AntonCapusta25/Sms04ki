@@ -1,6 +1,6 @@
 import twilio from 'twilio';
 
-const ALPHANUMERIC_SENDER_ID = 'YFEsthetic'; // Without spaces for testing
+const ALPHANUMERIC_SENDER_ID = 'YF Esthetic Club'; // Without spaces for testing
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
