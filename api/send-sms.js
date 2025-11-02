@@ -1,5 +1,8 @@
 import twilio from 'twilio';
 
+// Alphanumeric Sender ID for Ukraine (no registration required)
+const ALPHANUMERIC_SENDER_ID = 'YFEstheticClub'; // No spaces allowed
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -31,7 +34,7 @@ export default async function handler(req, res) {
     
     const twilioMessage = await client.messages.create({
       body: message,
-      from: twilioPhoneNumber,
+      from: ALPHANUMERIC_SENDER_ID, // Will show as "YFEstheticClub" to recipients
       to: to,
     });
 
