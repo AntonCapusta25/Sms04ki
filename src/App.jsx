@@ -435,141 +435,261 @@ const ClientsTab = ({
   clientForm,
   setClientForm,
   addClient,
+  updateClient,
   deleteClient,
   exportClients,
   handleImport,
-  fileInputRef
-}) => (
-  <div className="space-y-4 sm:space-y-6">
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-      <h2 className="text-xl sm:text-2xl font-semibold text-white">Управління клієнтами</h2>
-      <div className="flex flex-wrap gap-2 sm:gap-3">
-        <button
-          onClick={exportClients}
-          className="flex items-center gap-1.5 sm:gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Download size={16} className="sm:w-5 sm:h-5" />
-          Експорт
-        </button>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-1.5 sm:gap-2 bg-purple-600 text-white px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-purple-700 transition-colors"
-        >
-          <Upload size={16} className="sm:w-5 sm:h-5" />
-          Імпорт
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xlsx,.xls"
-          onChange={handleImport}
-          className="hidden"
-        />
-        <button
-          onClick={() => setShowClientForm(!showClientForm)}
-          className="flex items-center gap-1.5 sm:gap-2 bg-[#56AF40] text-white px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-[#4a9636] transition-colors"
-        >
-          <Plus size={16} className="sm:w-5 sm:h-5" />
-          Додати
-        </button>
-      </div>
-    </div>
+  fileInputRef,
+  editingClient,
+  setEditingClient,
+  editForm,
+  setEditForm
+}) => {
+  const [editingField, setEditingField] = useState(null);
 
-    {showClientForm && (
-      <div className="bg-[#2E2F33] rounded-lg p-4 sm:p-6 shadow-lg">
-        <h3 className="text-base sm:text-lg font-semibold text-white mb-4">Новий клієнт</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <input
-            type="text"
-            placeholder="Ім'я"
-            value={clientForm.name}
-            onChange={(e) => setClientForm({...clientForm, name: e.target.value})}
-            className="px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
-          />
-          <input
-            type="tel"
-            placeholder="Телефон"
-            value={clientForm.phone}
-            onChange={(e) => setClientForm({...clientForm, phone: e.target.value})}
-            className="px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
-          />
-          <input
-            type="email"
-            placeholder="Email (опціонально)"
-            value={clientForm.email}
-            onChange={(e) => setClientForm({...clientForm, email: e.target.value})}
-            className="px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
-          />
-          <select
-            value={clientForm.status}
-            onChange={(e) => setClientForm({...clientForm, status: e.target.value})}
-            className="px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
-          >
-            <option value="active">Активний</option>
-            <option value="inactive">Неактивний</option>
-          </select>
-        </div>
-        <div className="flex gap-3 mt-4">
+  const startEditing = (client, field) => {
+    setEditingClient(client.id);
+    setEditingField(field);
+    setEditForm({
+      name: client.name,
+      phone: client.phone,
+      email: client.email || '',
+      status: client.status
+    });
+  };
+
+  const handleFieldUpdate = async (clientId, field, value) => {
+    // Optimistic update
+    const updatedData = { [field]: value };
+    updateClient(clientId, updatedData);
+    
+    // Clear editing state
+    setEditingClient(null);
+    setEditingField(null);
+  };
+
+  const handleKeyPress = (e, clientId, field) => {
+    if (e.key === 'Enter') {
+      handleFieldUpdate(clientId, field, editForm[field]);
+    } else if (e.key === 'Escape') {
+      setEditingClient(null);
+      setEditingField(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h2 className="text-xl sm:text-2xl font-semibold text-white">Управління клієнтами</h2>
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <button
-            onClick={addClient}
-            className="flex-1 bg-[#56AF40] text-white px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-[#4a9636] transition-colors"
+            onClick={exportClients}
+            className="flex items-center gap-1.5 sm:gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Додати клієнта
+            <Download size={16} className="sm:w-5 sm:h-5" />
+            Експорт
           </button>
           <button
-            onClick={() => {
-              setShowClientForm(false);
-              setClientForm({ name: '', phone: '', email: '', status: 'active' });
-            }}
-            className="flex-1 bg-[#1E1E21] text-gray-300 px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-gray-700 transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 sm:gap-2 bg-purple-600 text-white px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-purple-700 transition-colors"
           >
-            Скасувати
+            <Upload size={16} className="sm:w-5 sm:h-5" />
+            Імпорт
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleImport}
+            className="hidden"
+          />
+          <button
+            onClick={() => setShowClientForm(!showClientForm)}
+            className="flex items-center gap-1.5 sm:gap-2 bg-[#56AF40] text-white px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-[#4a9636] transition-colors"
+          >
+            <Plus size={16} className="sm:w-5 sm:h-5" />
+            Додати
           </button>
         </div>
       </div>
-    )}
 
-    <div className="bg-[#2E2F33] rounded-lg shadow-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-[#1E1E21]">
-            <tr>
-              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Ім'я</th>
-              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Телефон</th>
-              <th className="hidden sm:table-cell px-6 py-4 text-left text-sm font-semibold text-gray-300">Email</th>
-              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Статус</th>
-              <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Дії</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700">
-            {clients.map(client => (
-              <tr key={client.id} className="hover:bg-[#1E1E21] transition-colors">
-                <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-base text-white">{client.name}</td>
-                <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-base text-gray-300">{client.phone}</td>
-                <td className="hidden sm:table-cell px-6 py-4 text-gray-300">{client.email || '-'}</td>
-                <td className="px-3 sm:px-6 py-3 sm:py-4">
-                  <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${
-                    client.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
-                  }`}>
-                    {client.status === 'active' ? 'Активний' : 'Неактивний'}
-                  </span>
-                </td>
-                <td className="px-3 sm:px-6 py-3 sm:py-4">
-                  <button
-                    onClick={() => deleteClient(client.id)}
-                    className="text-red-400 hover:text-red-300 transition-colors"
-                  >
-                    <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
-                  </button>
-                </td>
+      {showClientForm && (
+        <div className="bg-[#2E2F33] rounded-lg p-4 sm:p-6 shadow-lg">
+          <h3 className="text-base sm:text-lg font-semibold text-white mb-4">Новий клієнт</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <input
+              type="text"
+              placeholder="Ім'я"
+              value={clientForm.name}
+              onChange={(e) => setClientForm({...clientForm, name: e.target.value})}
+              className="px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            />
+            <input
+              type="tel"
+              placeholder="Телефон"
+              value={clientForm.phone}
+              onChange={(e) => setClientForm({...clientForm, phone: e.target.value})}
+              className="px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            />
+            <input
+              type="email"
+              placeholder="Email (опціонально)"
+              value={clientForm.email}
+              onChange={(e) => setClientForm({...clientForm, email: e.target.value})}
+              className="px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            />
+            <select
+              value={clientForm.status}
+              onChange={(e) => setClientForm({...clientForm, status: e.target.value})}
+              className="px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
+            >
+              <option value="active">Активний</option>
+              <option value="inactive">Неактивний</option>
+            </select>
+          </div>
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={addClient}
+              className="flex-1 bg-[#56AF40] text-white px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-[#4a9636] transition-colors"
+            >
+              Додати клієнта
+            </button>
+            <button
+              onClick={() => {
+                setShowClientForm(false);
+                setClientForm({ name: '', phone: '', email: '', status: 'active' });
+              }}
+              className="flex-1 bg-[#1E1E21] text-gray-300 px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              Скасувати
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-[#2E2F33] rounded-lg shadow-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-[#1E1E21]">
+              <tr>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Ім'я</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Телефон</th>
+                <th className="hidden sm:table-cell px-6 py-4 text-left text-sm font-semibold text-gray-300">Email</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Статус</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Дії</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-700">
+              {clients.map(client => (
+                <tr key={client.id} className="hover:bg-[#1E1E21] transition-colors">
+                  {/* Name - Editable */}
+                  <td className="px-3 sm:px-6 py-3 sm:py-4">
+                    {editingClient === client.id && editingField === 'name' ? (
+                      <input
+                        type="text"
+                        value={editForm.name}
+                        onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                        onBlur={() => handleFieldUpdate(client.id, 'name', editForm.name)}
+                        onKeyDown={(e) => handleKeyPress(e, client.id, 'name')}
+                        autoFocus
+                        className="w-full px-2 py-1 text-xs sm:text-sm bg-[#1E1E21] border border-[#56AF40] rounded text-white focus:outline-none"
+                      />
+                    ) : (
+                      <span
+                        onClick={() => startEditing(client, 'name')}
+                        className="text-xs sm:text-base text-white cursor-pointer hover:text-[#56AF40] transition-colors"
+                        title="Клікніть для редагування"
+                      >
+                        {client.name}
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Phone - Editable */}
+                  <td className="px-3 sm:px-6 py-3 sm:py-4">
+                    {editingClient === client.id && editingField === 'phone' ? (
+                      <input
+                        type="tel"
+                        value={editForm.phone}
+                        onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                        onBlur={() => handleFieldUpdate(client.id, 'phone', editForm.phone)}
+                        onKeyDown={(e) => handleKeyPress(e, client.id, 'phone')}
+                        autoFocus
+                        className="w-full px-2 py-1 text-xs sm:text-sm bg-[#1E1E21] border border-[#56AF40] rounded text-white focus:outline-none"
+                      />
+                    ) : (
+                      <span
+                        onClick={() => startEditing(client, 'phone')}
+                        className="text-xs sm:text-base text-gray-300 cursor-pointer hover:text-[#56AF40] transition-colors"
+                        title="Клікніть для редагування"
+                      >
+                        {client.phone}
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Email - Editable */}
+                  <td className="hidden sm:table-cell px-6 py-4">
+                    {editingClient === client.id && editingField === 'email' ? (
+                      <input
+                        type="email"
+                        value={editForm.email}
+                        onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                        onBlur={() => handleFieldUpdate(client.id, 'email', editForm.email)}
+                        onKeyDown={(e) => handleKeyPress(e, client.id, 'email')}
+                        autoFocus
+                        className="w-full px-2 py-1 text-sm bg-[#1E1E21] border border-[#56AF40] rounded text-white focus:outline-none"
+                      />
+                    ) : (
+                      <span
+                        onClick={() => startEditing(client, 'email')}
+                        className="text-gray-300 cursor-pointer hover:text-[#56AF40] transition-colors"
+                        title="Клікніть для редагування"
+                      >
+                        {client.email || '-'}
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Status - Dropdown with optimistic update */}
+                  <td className="px-3 sm:px-6 py-3 sm:py-4">
+                    <select
+                      value={client.status}
+                      onChange={(e) => handleFieldUpdate(client.id, 'status', e.target.value)}
+                      className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-[#56AF40] ${
+                        client.status === 'active' 
+                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
+                          : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30'
+                      }`}
+                    >
+                      <option value="active">Активний</option>
+                      <option value="inactive">Неактивний</option>
+                    </select>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-3 sm:px-6 py-3 sm:py-4">
+                    <button
+                      onClick={() => deleteClient(client.id)}
+                      className="text-red-400 hover:text-red-300 transition-colors"
+                      title="Видалити клієнта"
+                    >
+                      <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div className="text-xs sm:text-sm text-gray-500 text-center">
+        💡 Підказка: Клікніть на будь-яке поле для швидкого редагування. Натисніть Enter для збереження або Escape для скасування.
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ============================================
 // TEMPLATES TAB COMPONENT (OUTSIDE APP)
@@ -964,6 +1084,8 @@ const App = () => {
   // Client form
   const [clientForm, setClientForm] = useState({ name: '', phone: '', email: '', status: 'active' });
   const [showClientForm, setShowClientForm] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', phone: '', email: '', status: 'active' });
 
   // Template form
   const [templateForm, setTemplateForm] = useState({ name: '', content: '', variables: '' });
@@ -1060,6 +1182,32 @@ const App = () => {
     setClientForm({ name: '', phone: '', email: '', status: 'active' });
     setShowClientForm(false);
     fetchClients();
+  };
+
+  const updateClient = async (clientId, updatedData) => {
+    // Optimistic update - update UI immediately
+    setClients(prevClients => 
+      prevClients.map(client => 
+        client.id === clientId 
+          ? { ...client, ...updatedData, updated_at: new Date().toISOString() }
+          : client
+      )
+    );
+
+    // Background database update
+    try {
+      await supabase
+        .from('clients')
+        .update({
+          ...updatedData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', clientId);
+    } catch (error) {
+      console.error('Помилка оновлення клієнта:', error);
+      // Revert on error
+      fetchClients();
+    }
   };
 
   const deleteClient = async (id) => {
@@ -1398,10 +1546,15 @@ const App = () => {
               clientForm={clientForm}
               setClientForm={setClientForm}
               addClient={addClient}
+              updateClient={updateClient}
               deleteClient={deleteClient}
               exportClients={exportClients}
               handleImport={handleImport}
               fileInputRef={fileInputRef}
+              editingClient={editingClient}
+              setEditingClient={setEditingClient}
+              editForm={editForm}
+              setEditForm={setEditForm}
             />
           )}
           
