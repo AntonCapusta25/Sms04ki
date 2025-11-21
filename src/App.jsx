@@ -72,7 +72,7 @@ const VariablePills = ({ onInsert }) => (
           title={variable.isDbField ? `Автозаповнення з бази: {{${variable.name}}}` : `Ручна змінна: {{${variable.name}}}`}
         >
           <span className="text-sm sm:text-base">{variable.icon}</span>
-          <span>{variable.label}</span>
+          <span className="whitespace-nowrap">{variable.label}</span>
         </button>
       ))}
     </div>
@@ -214,9 +214,9 @@ const SendSMSTab = ({
           {customVarsNeeded.length > 0 && (
             <div className="bg-[#1E1E21] p-3 sm:p-4 rounded-lg border border-gray-700">
               <h3 className="text-xs sm:text-sm font-medium text-gray-300 mb-3">📝 Заповніть кастомні змінні</h3>
-              {customVarsNeeded.map(variable => (
-                <div key={variable} className="mb-3">
-                  <label className="block text-xs sm:text-sm text-gray-400 mb-1">{{variable}}</label>
+              {customVarsNeeded.map((variable, idx) => (
+                <div key={`custom-var-${idx}`} className="mb-3">
+                  <label className="block text-xs sm:text-sm text-gray-400 mb-1">{`{{${variable}}}`}</label>
                   <input
                     type="text"
                     value={customVariables[variable] || ''}
@@ -397,9 +397,9 @@ const BatchSendTab = ({
             <div className="bg-[#1E1E21] p-3 sm:p-4 rounded-lg border border-gray-700">
               <h3 className="text-xs sm:text-sm font-medium text-gray-300 mb-3">📝 Заповніть кастомні змінні</h3>
               <p className="text-xs text-gray-500 mb-3">⚠️ Ці значення будуть однакові для всіх обраних клієнтів</p>
-              {customVarsNeeded.map(variable => (
-                <div key={variable} className="mb-3">
-                  <label className="block text-xs sm:text-sm text-gray-400 mb-1">{{variable}}</label>
+              {customVarsNeeded.map((variable, idx) => (
+                <div key={`batch-var-${idx}`} className="mb-3">
+                  <label className="block text-xs sm:text-sm text-gray-400 mb-1">{`{{${variable}}}`}</label>
                   <input
                     type="text"
                     value={customVariables[variable] || ''}
@@ -785,8 +785,8 @@ const TemplatesTab = ({
               <div className="bg-[#1E1E21] p-3 rounded-lg border border-gray-700">
                 <p className="text-xs text-gray-400 mb-2">Виявлені змінні:</p>
                 <div className="flex flex-wrap gap-2">
-                  {extractVariables(templateForm.content).map(v => (
-                    <span key={v} className="px-2 py-1 bg-[#56AF40]/20 text-[#56AF40] rounded text-xs">
+                  {extractVariables(templateForm.content).map((v, idx) => (
+                    <span key={`detected-var-${idx}`} className="px-2 py-1 bg-[#56AF40]/20 text-[#56AF40] rounded text-xs">
                       {`{{${v}}}`}
                     </span>
                   ))}
@@ -835,10 +835,10 @@ const TemplatesTab = ({
               </div>
             </div>
             <p className="text-sm sm:text-base text-gray-300 mb-3 whitespace-pre-wrap">{template.content}</p>
-            {template.variables?.length > 0 && (
+            {template.variables && Array.isArray(template.variables) && template.variables.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {template.variables.map(variable => (
-                  <span key={variable} className="px-2 sm:px-3 py-1 bg-[#1E1E21] text-gray-400 rounded-full text-xs sm:text-sm">
+                {template.variables.map((variable, idx) => (
+                  <span key={`${template.id}-var-${idx}`} className="px-2 sm:px-3 py-1 bg-[#1E1E21] text-gray-400 rounded-full text-xs sm:text-sm">
                     {`{{${variable}}}`}
                   </span>
                 ))}
