@@ -7,7 +7,7 @@ const supabase = createClient(
 );
 
 // Alphanumeric Sender ID for Ukraine (no registration required)
-const ALPHANUMERIC_SENDER_ID = 'YFEsthetic'; // No spaces allowed
+const ALPHANUMERIC_SENDER_ID = 'YFClub'; // No spaces allowed
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -131,5 +131,5 @@ export default async function handler(req, res) {
 
 **Example of what your clients will see:**
 ```
-From: YFEstheticClub
+From: YFClub
 Message: Ваш запис на завтра о 15:00
