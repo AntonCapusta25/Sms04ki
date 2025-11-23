@@ -1058,58 +1058,37 @@ const ClientsTab = ({
                     )}
                   </td>
 
-                  {/* Segments - Dropdown like Status */}
+                  {/* Segments - Single select dropdown like Status */}
                   <td className="px-3 sm:px-6 py-3 sm:py-4">
                     <select
-                      value=""
+                      value={client.segments?.[0]?.id || ''}
                       onChange={(e) => {
-                        if (e.target.value) {
-                          const segmentId = e.target.value;
-                          const isInSegment = client.segments?.some(s => s.id === segmentId);
-                          
-                          if (isInSegment) {
-                            removeClientFromSegment(client.id, segmentId);
-                          } else {
-                            addClientToSegment(client.id, segmentId);
-                          }
-                          e.target.value = ''; // Reset dropdown
+                        const newSegmentId = e.target.value;
+                        const currentSegment = client.segments?.[0];
+                        
+                        // Remove from current segment if exists
+                        if (currentSegment) {
+                          removeClientFromSegment(client.id, currentSegment.id);
+                        }
+                        
+                        // Add to new segment if selected
+                        if (newSegmentId) {
+                          addClientToSegment(client.id, newSegmentId);
                         }
                       }}
-                      className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-[#56AF40] bg-[#1E1E21] text-gray-300 hover:bg-gray-700"
+                      className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-[#56AF40] ${
+                        client.segments?.[0]
+                          ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+                          : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30'
+                      }`}
                     >
-                      <option value="">
-                        {client.segments?.length > 0 ? `${client.segments.length} сегментів` : 'Немає сегментів'}
-                      </option>
-                      {segments.map(segment => {
-                        const isInSegment = client.segments?.some(s => s.id === segment.id);
-                        return (
-                          <option key={segment.id} value={segment.id}>
-                            {isInSegment ? '✓ ' : '+ '} {segment.name}
-                          </option>
-                        );
-                      })}
+                      <option value="">Без сегменту</option>
+                      {segments.map(segment => (
+                        <option key={segment.id} value={segment.id}>
+                          {segment.name}
+                        </option>
+                      ))}
                     </select>
-                    
-                    {/* Display current segments as pills below */}
-                    {client.segments?.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {client.segments.map(segment => (
-                          <span
-                            key={segment.id}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#56AF40]/20 text-[#56AF40] rounded-full text-xs"
-                          >
-                            {segment.name}
-                            <button
-                              onClick={() => removeClientFromSegment(client.id, segment.id)}
-                              className="hover:text-red-400 transition-colors font-bold"
-                              title="Видалити з сегменту"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </td>
 
                   {/* Status - Dropdown with optimistic update */}
