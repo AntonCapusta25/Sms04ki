@@ -1449,7 +1449,7 @@ const SegmentsTab = ({
                 onClick={() => setSelectedSegment(selectedSegment === segment.id ? '' : segment.id)}
                 className="text-[#56AF40] hover:text-[#4a9636] text-xs sm:text-sm font-medium"
               >
-                {selectedSegment === segment.id ? 'Приховати' : 'Керувати'} клієнтами
+                {selectedSegment === segment.id ? 'Приховати' : 'Керувати'}
               </button>
 
               {selectedSegment === segment.id && (
