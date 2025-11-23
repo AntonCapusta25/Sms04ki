@@ -841,7 +841,8 @@ const ClientsTab = ({
   importResults,
   segments,
   addClientToSegment,
-  removeClientFromSegment
+  removeClientFromSegment,
+  updateClientSegment
 }) => {
   const [editingField, setEditingField] = useState(null);
 
@@ -1063,24 +1064,18 @@ const ClientsTab = ({
                     <select
                       value={client.segments?.[0]?.id || ''}
                       onChange={(e) => {
-                        const newSegmentId = e.target.value;
-                        const currentSegment = client.segments?.[0];
-                        
-                        // Remove from current segment if exists
-                        if (currentSegment) {
-                          removeClientFromSegment(client.id, currentSegment.id);
-                        }
-                        
-                        // Add to new segment if selected
-                        if (newSegmentId) {
-                          addClientToSegment(client.id, newSegmentId);
-                        }
+                        updateClientSegment(client.id, e.target.value);
                       }}
-                      className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-[#56AF40] ${
+                      className={`px-2 sm:px-3 py-1 pr-7 rounded-full text-xs sm:text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-[#56AF40] appearance-none bg-no-repeat ${
                         client.segments?.[0]
                           ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
                           : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30'
                       }`}
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='currentColor' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                        backgroundPosition: 'right 0.5rem center',
+                        backgroundSize: '12px'
+                      }}
                     >
                       <option value="">Без сегменту</option>
                       {segments.map(segment => (
@@ -1096,11 +1091,16 @@ const ClientsTab = ({
                     <select
                       value={client.status}
                       onChange={(e) => handleFieldUpdate(client.id, 'status', e.target.value)}
-                      className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-[#56AF40] ${
+                      className={`px-2 sm:px-3 py-1 pr-7 rounded-full text-xs sm:text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-[#56AF40] appearance-none bg-no-repeat ${
                         client.status === 'active' 
                           ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
                           : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30'
                       }`}
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='currentColor' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                        backgroundPosition: 'right 0.5rem center',
+                        backgroundSize: '12px'
+                      }}
                     >
                       <option value="active">Активний</option>
                       <option value="inactive">Неактивний</option>
@@ -1611,6 +1611,49 @@ const App = () => {
       .eq('client_id', clientId)
       .eq('segment_id', segmentId);
     fetchClients();
+  };
+
+  const updateClientSegment = (clientId, newSegmentId) => {
+    // Optimistic update - update UI immediately
+    setClients(prevClients => {
+      return prevClients.map(client => {
+        if (client.id === clientId) {
+          const newSegment = segments.find(s => s.id === newSegmentId);
+          return {
+            ...client,
+            segments: newSegmentId ? [newSegment] : []
+          };
+        }
+        return client;
+      });
+    });
+
+    // Background database operations
+    (async () => {
+      try {
+        const client = clients.find(c => c.id === clientId);
+        const currentSegment = client.segments?.[0];
+        
+        // Remove from current segment if exists
+        if (currentSegment) {
+          await supabase.from('client_segments').delete()
+            .eq('client_id', clientId)
+            .eq('segment_id', currentSegment.id);
+        }
+        
+        // Add to new segment if selected
+        if (newSegmentId) {
+          await supabase.from('client_segments').insert([{ 
+            client_id: clientId, 
+            segment_id: newSegmentId 
+          }]);
+        }
+      } catch (error) {
+        console.error('Error updating segment:', error);
+        // Revert on error
+        fetchClients();
+      }
+    })();
   };
 
   const getClientsBySegment = (segmentId) => {
@@ -2131,6 +2174,7 @@ const App = () => {
               segments={segments}
               addClientToSegment={addClientToSegment}
               removeClientFromSegment={removeClientFromSegment}
+              updateClientSegment={updateClientSegment}
             />
           )}
           
