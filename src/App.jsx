@@ -553,7 +553,7 @@ const SendSMSTab = ({
   handleSendSMS 
 }) => {
   const insertVariable = (varName) => {
-    setMessageContent(prev => prev + `{{${varName}}}`);
+    setMessageContent(prev => prev + `{{${varName}}} `);
   };
 
   // Get variables that need to be filled (non-DB fields)
@@ -680,7 +680,7 @@ const BatchSendTab = ({
   getClientsBySegment
 }) => {
   const insertVariable = (varName) => {
-    setMessageContent(prev => prev + `{{${varName}}}`);
+    setMessageContent(prev => prev + `{{${varName}}} `);
   };
 
   const selectSegment = (segmentId) => {
@@ -1346,7 +1346,7 @@ const TemplatesTab = ({
   const insertVariable = (varName) => {
     setTemplateForm(prev => ({
       ...prev,
-      content: prev.content + `{{${varName}}}`
+      content: prev.content + `{{${varName}}} `
     }));
   };
 
