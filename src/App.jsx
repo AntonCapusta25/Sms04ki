@@ -838,9 +838,24 @@ const ClientsTab = ({
   setShowImportModal,
   showImportResultsModal,
   setShowImportResultsModal,
-  importResults
+  importResults,
+  segments,
+  addClientToSegment,
+  removeClientFromSegment
 }) => {
   const [editingField, setEditingField] = useState(null);
+  const [showSegmentDropdown, setShowSegmentDropdown] = useState(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showSegmentDropdown && !event.target.closest('.segment-dropdown-container')) {
+        setShowSegmentDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSegmentDropdown]);
 
   const startEditing = (client, field) => {
     setEditingClient(client.id);
@@ -978,6 +993,7 @@ const ClientsTab = ({
                 <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Ім'я</th>
                 <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Телефон</th>
                 <th className="hidden sm:table-cell px-6 py-4 text-left text-sm font-semibold text-gray-300">Email</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Сегменти</th>
                 <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Статус</th>
                 <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Дії</th>
               </tr>
@@ -1052,6 +1068,82 @@ const ClientsTab = ({
                         {client.email || '-'}
                       </span>
                     )}
+                  </td>
+
+                  {/* Segments - Dropdown */}
+                  <td className="px-3 sm:px-6 py-3 sm:py-4">
+                    <div className="relative segment-dropdown-container">
+                      <button
+                        onClick={() => setShowSegmentDropdown(showSegmentDropdown === client.id ? null : client.id)}
+                        className="flex items-center gap-2 px-2 sm:px-3 py-1 bg-[#1E1E21] border border-gray-600 rounded hover:border-[#56AF40] transition-colors text-xs sm:text-sm"
+                      >
+                        <Tags size={14} className="text-gray-400" />
+                        <span className="text-gray-300">
+                          {client.segments?.length > 0 ? `${client.segments.length} сегментів` : 'Немає'}
+                        </span>
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {showSegmentDropdown === client.id && (
+                        <div className="absolute z-10 mt-2 w-64 bg-[#2E2F33] border border-gray-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                          <div className="p-3">
+                            <h4 className="text-sm font-medium text-white mb-2">Оберіть сегменти</h4>
+                            {segments.length === 0 ? (
+                              <p className="text-xs text-gray-500">Немає доступних сегментів</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {segments.map(segment => {
+                                  const isInSegment = client.segments?.some(s => s.id === segment.id);
+                                  return (
+                                    <label
+                                      key={segment.id}
+                                      className="flex items-center gap-2 p-2 hover:bg-[#1E1E21] rounded cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isInSegment}
+                                        onChange={() => {
+                                          if (isInSegment) {
+                                            removeClientFromSegment(client.id, segment.id);
+                                          } else {
+                                            addClientToSegment(client.id, segment.id);
+                                          }
+                                        }}
+                                        className="rounded"
+                                      />
+                                      <span className="text-sm text-white">{segment.name}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Current segments display */}
+                          {client.segments?.length > 0 && (
+                            <div className="border-t border-gray-600 p-3">
+                              <h4 className="text-xs font-medium text-gray-400 mb-2">Активні сегменти:</h4>
+                              <div className="flex flex-wrap gap-1">
+                                {client.segments.map(segment => (
+                                  <span
+                                    key={segment.id}
+                                    className="px-2 py-1 bg-[#56AF40]/20 text-[#56AF40] rounded text-xs flex items-center gap-1"
+                                  >
+                                    {segment.name}
+                                    <button
+                                      onClick={() => removeClientFromSegment(client.id, segment.id)}
+                                      className="hover:text-red-400 transition-colors"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </td>
 
                   {/* Status - Dropdown with optimistic update */}
@@ -2091,6 +2183,9 @@ const App = () => {
               showImportResultsModal={showImportResultsModal}
               setShowImportResultsModal={setShowImportResultsModal}
               importResults={importResults}
+              segments={segments}
+              addClientToSegment={addClientToSegment}
+              removeClientFromSegment={removeClientFromSegment}
             />
           )}
           
