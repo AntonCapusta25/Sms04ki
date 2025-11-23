@@ -883,6 +883,8 @@ const ClientsTab = ({
   const [editingField, setEditingField] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [segmentFilter, setSegmentFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -890,6 +892,7 @@ const ClientsTab = ({
       direction = 'desc';
     }
     setSortConfig({ key, direction });
+    setCurrentPage(1); // Reset to first page when sorting
   };
 
   // Filter clients by segment
@@ -949,6 +952,21 @@ const ClientsTab = ({
     }
     return sortableClients;
   }, [filteredClients, sortConfig]);
+
+  // Pagination
+  const totalPages = Math.ceil(sortedClients.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedClients = sortedClients.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [segmentFilter]);
+
+  const goToPage = (page) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
 
   const startEditing = (client, field) => {
     setEditingClient(client.id);
@@ -1149,7 +1167,7 @@ const ClientsTab = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
-              {sortedClients.map(client => (
+              {paginatedClients.map(client => (
                 <tr key={client.id} className="hover:bg-[#1E1E21] transition-colors">
                   {/* Name - Editable */}
                   <td className="px-3 sm:px-6 py-3 sm:py-4">
@@ -1285,6 +1303,115 @@ const ClientsTab = ({
         </div>
       </div>
       
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="bg-[#2E2F33] rounded-lg p-4 shadow-lg">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Page Info */}
+            <div className="text-sm text-gray-400">
+              Показано {startIndex + 1}-{Math.min(endIndex, sortedClients.length)} з {sortedClients.length} клієнтів
+            </div>
+
+            {/* Pagination Buttons */}
+            <div className="flex items-center gap-2">
+              {/* First Page */}
+              <button
+                onClick={() => goToPage(1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 rounded bg-[#1E1E21] text-gray-400 hover:bg-[#56AF40] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Перша сторінка"
+              >
+                ««
+              </button>
+
+              {/* Previous Page */}
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 rounded bg-[#1E1E21] text-gray-400 hover:bg-[#56AF40] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Попередня"
+              >
+                «
+              </button>
+
+              {/* Page Numbers */}
+              <div className="flex items-center gap-1">
+                {[...Array(totalPages)].map((_, idx) => {
+                  const page = idx + 1;
+                  // Show first page, last page, current page, and 2 pages around current
+                  const showPage = 
+                    page === 1 || 
+                    page === totalPages || 
+                    (page >= currentPage - 2 && page <= currentPage + 2);
+                  
+                  const showEllipsis = 
+                    (page === currentPage - 3 && currentPage > 4) ||
+                    (page === currentPage + 3 && currentPage < totalPages - 3);
+
+                  if (showEllipsis) {
+                    return <span key={page} className="px-2 text-gray-600">...</span>;
+                  }
+
+                  if (!showPage) return null;
+
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => goToPage(page)}
+                      className={`px-3 py-1 rounded transition-colors ${
+                        currentPage === page
+                          ? 'bg-[#56AF40] text-white font-semibold'
+                          : 'bg-[#1E1E21] text-gray-400 hover:bg-[#56AF40] hover:text-white'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Next Page */}
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 rounded bg-[#1E1E21] text-gray-400 hover:bg-[#56AF40] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Наступна"
+              >
+                »
+              </button>
+
+              {/* Last Page */}
+              <button
+                onClick={() => goToPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 rounded bg-[#1E1E21] text-gray-400 hover:bg-[#56AF40] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Остання сторінка"
+              >
+                »»
+              </button>
+            </div>
+
+            {/* Items per page */}
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400">На сторінці:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 bg-[#1E1E21] border border-gray-700 rounded text-white focus:outline-none focus:border-[#56AF40]"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Filter and Sort status indicators */}
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 text-center sm:text-left">
         {segmentFilter && (
@@ -1328,6 +1455,7 @@ const ClientsTab = ({
           <div className="text-center">
             Всього: {clients.length} {clients.length === 1 ? 'клієнт' : 
               clients.length < 5 ? 'клієнти' : 'клієнтів'}
+            {totalPages > 1 && ` • Сторінка ${currentPage} з ${totalPages}`}
           </div>
         )}
       </div>
