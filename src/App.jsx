@@ -453,7 +453,10 @@ const VariablePills = ({ onInsert }) => (
       {predefinedVariables.map(variable => (
         <button
           key={variable.name}
-          onClick={() => onInsert(variable.name)}
+          onClick={(e) => {
+            onInsert(variable.name);
+            e.currentTarget.blur(); // Remove focus to prevent space from re-clicking
+          }}
           className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
             variable.isDbField 
               ? 'bg-[#56AF40]/20 text-[#56AF40] border-[#56AF40]/30 hover:bg-[#56AF40] hover:text-white'
