@@ -279,6 +279,171 @@ const ImportModal = ({ isOpen, onClose, onImport, fileInputRef }) => {
 };
 
 // ============================================
+// IMPORT RESULTS MODAL COMPONENT (NEW)
+// ============================================
+const ImportResultsModal = ({ isOpen, onClose, results }) => {
+  if (!isOpen) return null;
+
+  const totalProcessed = results.imported + results.updated + results.skipped.length;
+  const successRate = totalProcessed > 0 ? Math.round(((results.imported + results.updated) / totalProcessed) * 100) : 0;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-[#2E2F33] rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-700">
+          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+            <CheckCircle size={24} className="text-[#56AF40]" />
+            Результати імпорту
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Summary Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle size={32} className="text-green-400" />
+                <div>
+                  <p className="text-2xl font-bold text-green-400">{results.imported}</p>
+                  <p className="text-sm text-gray-400">Нові клієнти</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <Edit2 size={32} className="text-blue-400" />
+                <div>
+                  <p className="text-2xl font-bold text-blue-400">{results.updated}</p>
+                  <p className="text-sm text-gray-400">Оновлені</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <AlertCircle size={32} className="text-yellow-400" />
+                <div>
+                  <p className="text-2xl font-bold text-yellow-400">{results.skipped.length}</p>
+                  <p className="text-sm text-gray-400">Пропущено</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Success Rate */}
+          <div className="bg-[#1E1E21] rounded-lg p-4 border border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-400">Успішність імпорту</span>
+              <span className="text-lg font-bold text-[#56AF40]">{successRate}%</span>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-2">
+              <div 
+                className="bg-[#56AF40] h-2 rounded-full transition-all duration-500"
+                style={{ width: `${successRate}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Skipped Rows Details */}
+          {results.skipped.length > 0 && (
+            <div className="bg-[#1E1E21] rounded-lg p-5 border border-yellow-500/30">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <AlertCircle size={20} className="text-yellow-400" />
+                Пропущені записи ({results.skipped.length})
+              </h3>
+              
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {results.skipped.map((skip, idx) => (
+                  <div key={idx} className="bg-[#2E2F33] rounded-lg p-4 border border-gray-700">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                        <span className="text-yellow-400 font-semibold text-sm">{skip.row}</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white font-medium mb-1">
+                          Рядок {skip.row}
+                          {skip.name && <span className="text-gray-400"> - {skip.name}</span>}
+                        </p>
+                        <div className="flex items-start gap-2 text-sm">
+                          <span className="text-yellow-400">⚠️</span>
+                          <p className="text-gray-400">{skip.reason}</p>
+                        </div>
+                        {skip.data && (
+                          <div className="mt-2 p-2 bg-[#1E1E21] rounded text-xs text-gray-500 font-mono">
+                            {Object.entries(skip.data)
+                              .filter(([key, value]) => value)
+                              .map(([key, value]) => `${key}: ${value}`)
+                              .join(' | ') || 'Немає даних'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Errors */}
+          {results.errors && results.errors.length > 0 && (
+            <div className="bg-[#1E1E21] rounded-lg p-5 border border-red-500/30">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <XCircle size={20} className="text-red-400" />
+                Помилки ({results.errors.length})
+              </h3>
+              
+              <div className="space-y-2">
+                {results.errors.map((error, idx) => (
+                  <div key={idx} className="bg-[#2E2F33] rounded p-3 border border-gray-700">
+                    <p className="text-red-400 text-sm">{error}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {results.skipped.length === 0 && (
+            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 text-center">
+              <CheckCircle size={48} className="mx-auto text-green-400 mb-3" />
+              <p className="text-lg font-semibold text-green-400 mb-1">Ідеально! 🎉</p>
+              <p className="text-sm text-gray-400">Всі записи успішно імпортовані без помилок</p>
+            </div>
+          )}
+
+          {/* Tips */}
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+            <p className="text-sm text-blue-400 flex items-start gap-2">
+              <span className="text-lg">💡</span>
+              <span>
+                <strong>Порада:</strong> Виправте пропущені записи у вашому Excel файлі та імпортуйте знову. 
+                Система автоматично оновить існуючі записи за номером телефону.
+              </span>
+            </p>
+          </div>
+
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            className="w-full bg-[#56AF40] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#4a9636] transition-colors"
+          >
+            Закрити
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
 // VARIABLE PILLS COMPONENT (OUTSIDE APP)
 // ============================================
 const VariablePills = ({ onInsert }) => (
@@ -670,7 +835,10 @@ const ClientsTab = ({
   editForm,
   setEditForm,
   showImportModal,
-  setShowImportModal
+  setShowImportModal,
+  showImportResultsModal,
+  setShowImportResultsModal,
+  importResults
 }) => {
   const [editingField, setEditingField] = useState(null);
 
@@ -739,6 +907,13 @@ const ClientsTab = ({
         onClose={() => setShowImportModal(false)}
         onImport={handleImport}
         fileInputRef={fileInputRef}
+      />
+
+      {/* Import Results Modal */}
+      <ImportResultsModal
+        isOpen={showImportResultsModal}
+        onClose={() => setShowImportResultsModal(false)}
+        results={importResults}
       />
 
       {showClientForm && (
@@ -1327,6 +1502,8 @@ const App = () => {
   // Import file ref and modal
   const fileInputRef = useRef(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showImportResultsModal, setShowImportResultsModal] = useState(false);
+  const [importResults, setImportResults] = useState({ imported: 0, updated: 0, skipped: [], errors: [] });
 
   useEffect(() => {
     fetchClients();
@@ -1497,58 +1674,140 @@ const App = () => {
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
         let imported = 0;
-        let skipped = 0;
+        let updated = 0;
+        const skipped = [];
+        const errors = [];
 
-        for (const row of jsonData) {
+        for (let i = 0; i < jsonData.length; i++) {
+          const row = jsonData[i];
+          const rowNumber = i + 2; // Excel row number (accounting for header)
+          
           const firstName = row["Ім'я"] || '';
           const lastName = row['Прізвище'] || '';
           const name = `${firstName} ${lastName}`.trim();
           const phone = row['Телефон'] || '';
           const email = row['Email'] || '';
 
-          if (!name || !phone) {
-            skipped++;
+          // Validation: Check if name is missing
+          if (!name || name.length === 0) {
+            skipped.push({
+              row: rowNumber,
+              name: phone || '(немає даних)',
+              reason: "Відсутнє ім'я клієнта. Поля 'Ім'я' та 'Прізвище' не можуть бути порожніми.",
+              data: { "Ім'я": firstName, "Прізвище": lastName, "Телефон": phone, "Email": email }
+            });
             continue;
           }
 
-          const { data: existing } = await supabase
-            .from('clients')
-            .select('id')
-            .eq('phone', phone)
-            .single();
+          // Validation: Check if phone is missing
+          if (!phone || phone.length === 0) {
+            skipped.push({
+              row: rowNumber,
+              name: name,
+              reason: "Відсутній номер телефону. Поле 'Телефон' обов'язкове для ідентифікації клієнта.",
+              data: { "Ім'я": firstName, "Прізвище": lastName, "Телефон": phone, "Email": email }
+            });
+            continue;
+          }
 
-          if (existing) {
-            await supabase
+          // Validation: Check phone format
+          const phoneStr = String(phone).trim();
+          if (phoneStr.length < 10) {
+            skipped.push({
+              row: rowNumber,
+              name: name,
+              reason: `Невірний формат телефону '${phoneStr}'. Номер повинен містити мінімум 10 цифр (наприклад: +380671234567).`,
+              data: { "Ім'я": firstName, "Прізвище": lastName, "Телефон": phone, "Email": email }
+            });
+            continue;
+          }
+
+          try {
+            // Format phone to include + if missing
+            let formattedPhone = phoneStr;
+            if (!formattedPhone.startsWith('+')) {
+              formattedPhone = '+' + formattedPhone;
+            }
+
+            const { data: existing } = await supabase
               .from('clients')
-              .update({
-                name,
-                email: email || null,
-                updated_at: new Date().toISOString()
-              })
-              .eq('phone', phone);
-            imported++;
-          } else {
-            await supabase
-              .from('clients')
-              .insert({
-                name,
-                phone,
-                email: email || null,
-                status: 'active'
-              });
-            imported++;
+              .select('id')
+              .eq('phone', formattedPhone)
+              .single();
+
+            if (existing) {
+              // Update existing client
+              const { error: updateError } = await supabase
+                .from('clients')
+                .update({
+                  name,
+                  email: email || null,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('phone', formattedPhone);
+
+              if (updateError) {
+                skipped.push({
+                  row: rowNumber,
+                  name: name,
+                  reason: `Помилка оновлення: ${updateError.message}`,
+                  data: { "Ім'я": firstName, "Прізвище": lastName, "Телефон": formattedPhone, "Email": email }
+                });
+              } else {
+                updated++;
+              }
+            } else {
+              // Insert new client
+              const { error: insertError } = await supabase
+                .from('clients')
+                .insert({
+                  name,
+                  phone: formattedPhone,
+                  email: email || null,
+                  status: 'active'
+                });
+
+              if (insertError) {
+                skipped.push({
+                  row: rowNumber,
+                  name: name,
+                  reason: `Помилка додавання: ${insertError.message}`,
+                  data: { "Ім'я": firstName, "Прізвище": lastName, "Телефон": formattedPhone, "Email": email }
+                });
+              } else {
+                imported++;
+              }
+            }
+          } catch (error) {
+            skipped.push({
+              row: rowNumber,
+              name: name,
+              reason: `Непередбачена помилка: ${error.message}`,
+              data: { "Ім'я": firstName, "Прізвище": lastName, "Телефон": phone, "Email": email }
+            });
           }
         }
 
-        alert(`Імпорт завершено!\n✅ Імпортовано/Оновлено: ${imported}\n⚠️ Пропущено: ${skipped}`);
+        // Set results and show modal
+        setImportResults({ imported, updated, skipped, errors });
+        setShowImportResultsModal(true);
+        
+        // Refresh client list
         fetchClients();
         
+        // Clear file input
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
       } catch (error) {
         console.error('Помилка імпорту:', error);
-        alert('Помилка при імпорті файлу: ' + error.message);
+        setImportResults({
+          imported: 0,
+          updated: 0,
+          skipped: [],
+          errors: [`Критична помилка при читанні файлу: ${error.message}`]
+        });
+        setShowImportResultsModal(true);
       }
     };
 
@@ -1786,6 +2045,9 @@ const App = () => {
               setEditForm={setEditForm}
               showImportModal={showImportModal}
               setShowImportModal={setShowImportModal}
+              showImportResultsModal={showImportResultsModal}
+              setShowImportResultsModal={setShowImportResultsModal}
+              importResults={importResults}
             />
           )}
           
