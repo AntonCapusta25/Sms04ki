@@ -520,6 +520,17 @@ const SidebarNav = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) =>
         <NavItem icon={<MessageSquare size={18} />} label="Шаблони" active={activeTab === 'templates'} onClick={() => { setActiveTab('templates'); if (window.innerWidth < 1024) setSidebarOpen(false); }} collapsed={!sidebarOpen} />
         <NavItem icon={<Clock size={18} />} label="Історія" active={activeTab === 'history'} onClick={() => { setActiveTab('history'); if (window.innerWidth < 1024) setSidebarOpen(false); }} collapsed={!sidebarOpen} />
       </nav>
+      
+      {/* Footer */}
+      {sidebarOpen && (
+        <div className="p-4 border-t border-gray-700">
+          <div className="text-center">
+            <p className="text-xs text-gray-500 mb-1">Made with ❤️ by</p>
+            <p className="text-sm font-semibold text-[#56AF40]">Autoflow Studio</p>
+            <p className="text-xs text-gray-400 mt-1">for YF Esthetic Club</p>
+          </div>
+        </div>
+      )}
     </div>
   </>
 );
@@ -1850,10 +1861,57 @@ const App = () => {
 
   const addClient = async () => {
     if (!clientForm.name || !clientForm.phone) return;
-    await supabase.from('clients').insert([clientForm]);
+    
+    // Optimistic update - create temporary client with temp ID
+    const tempClient = {
+      id: `temp-${Date.now()}`, // Temporary ID
+      ...clientForm,
+      segments: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    // Add to UI immediately
+    setClients(prevClients => [tempClient, ...prevClients]);
+    
+    // Clear form and close
     setClientForm({ name: '', phone: '', email: '', status: 'active' });
     setShowClientForm(false);
-    fetchClients();
+    
+    // Background database operation
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .insert([clientForm])
+        .select(`
+          *,
+          client_segments(
+            segment_id,
+            segments(id, name, tags)
+          )
+        `);
+      
+      if (error) throw error;
+      
+      // Replace temp client with real one from database
+      if (data && data.length > 0) {
+        const newClient = {
+          ...data[0],
+          segments: data[0].client_segments?.map(cs => cs.segments) || []
+        };
+        
+        setClients(prevClients => 
+          prevClients.map(c => c.id === tempClient.id ? newClient : c)
+        );
+      }
+    } catch (error) {
+      console.error('Помилка додавання клієнта:', error);
+      // Remove temp client on error
+      setClients(prevClients => 
+        prevClients.filter(c => c.id !== tempClient.id)
+      );
+      alert('Помилка при додаванні клієнта: ' + error.message);
+    }
   };
 
   const updateClient = async (clientId, updatedData) => {
