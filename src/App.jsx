@@ -816,6 +816,20 @@ const BatchSendTab = ({
 };
 
 // ============================================
+// SORT ICON COMPONENT
+// ============================================
+const SortIcon = ({ column, sortConfig }) => {
+  if (sortConfig.key !== column) {
+    return <span className="text-gray-600 ml-1">⇅</span>;
+  }
+  return (
+    <span className="text-[#56AF40] ml-1">
+      {sortConfig.direction === 'asc' ? '↑' : '↓'}
+    </span>
+  );
+};
+
+// ============================================
 // CLIENTS TAB COMPONENT (OUTSIDE APP)
 // ============================================
 const ClientsTab = ({
@@ -845,6 +859,58 @@ const ClientsTab = ({
   updateClientSegment
 }) => {
   const [editingField, setEditingField] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedClients = React.useMemo(() => {
+    let sortableClients = [...clients];
+    if (sortConfig.key !== null) {
+      sortableClients.sort((a, b) => {
+        let aValue, bValue;
+
+        switch (sortConfig.key) {
+          case 'name':
+            aValue = a.name?.toLowerCase() || '';
+            bValue = b.name?.toLowerCase() || '';
+            break;
+          case 'phone':
+            aValue = a.phone || '';
+            bValue = b.phone || '';
+            break;
+          case 'email':
+            aValue = a.email?.toLowerCase() || '';
+            bValue = b.email?.toLowerCase() || '';
+            break;
+          case 'segment':
+            aValue = a.segments?.[0]?.name?.toLowerCase() || 'zzz'; // Put "no segment" at end
+            bValue = b.segments?.[0]?.name?.toLowerCase() || 'zzz';
+            break;
+          case 'status':
+            aValue = a.status || '';
+            bValue = b.status || '';
+            break;
+          default:
+            return 0;
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableClients;
+  }, [clients, sortConfig]);
 
   const startEditing = (client, field) => {
     setEditingClient(client.id);
@@ -979,16 +1045,58 @@ const ClientsTab = ({
           <table className="w-full">
             <thead className="bg-[#1E1E21]">
               <tr>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Ім'я</th>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Телефон</th>
-                <th className="hidden sm:table-cell px-6 py-4 text-left text-sm font-semibold text-gray-300">Email</th>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Сегменти</th>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Статус</th>
-                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">Дії</th>
+                <th 
+                  onClick={() => handleSort('name')}
+                  className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors select-none"
+                >
+                  <div className="flex items-center">
+                    Ім'я
+                    <SortIcon column="name" sortConfig={sortConfig} />
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('phone')}
+                  className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors select-none"
+                >
+                  <div className="flex items-center">
+                    Телефон
+                    <SortIcon column="phone" sortConfig={sortConfig} />
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('email')}
+                  className="hidden sm:table-cell px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors select-none"
+                >
+                  <div className="flex items-center">
+                    Email
+                    <SortIcon column="email" sortConfig={sortConfig} />
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('segment')}
+                  className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors select-none"
+                >
+                  <div className="flex items-center">
+                    Сегменти
+                    <SortIcon column="segment" sortConfig={sortConfig} />
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('status')}
+                  className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors select-none"
+                >
+                  <div className="flex items-center">
+                    Статус
+                    <SortIcon column="status" sortConfig={sortConfig} />
+                  </div>
+                </th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300">
+                  Дії
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
-              {clients.map(client => (
+              {sortedClients.map(client => (
                 <tr key={client.id} className="hover:bg-[#1E1E21] transition-colors">
                   {/* Name - Editable */}
                   <td className="px-3 sm:px-6 py-3 sm:py-4">
@@ -1123,6 +1231,19 @@ const ClientsTab = ({
           </table>
         </div>
       </div>
+      
+      {/* Sort status indicator */}
+      {sortConfig.key && (
+        <div className="text-xs sm:text-sm text-gray-500 text-center">
+          📊 Сортування: {
+            sortConfig.key === 'name' ? "Ім'я" :
+            sortConfig.key === 'phone' ? 'Телефон' :
+            sortConfig.key === 'email' ? 'Email' :
+            sortConfig.key === 'segment' ? 'Сегменти' :
+            sortConfig.key === 'status' ? 'Статус' : ''
+          } ({sortConfig.direction === 'asc' ? 'А → Я' : 'Я → А'})
+        </div>
+      )}
       
       <div className="text-xs sm:text-sm text-gray-500 text-center">
         💡 Підказка: Клікніть на будь-яке поле для швидкого редагування. Натисніть Enter для збереження або Escape для скасування.
@@ -1449,7 +1570,7 @@ const SegmentsTab = ({
                 onClick={() => setSelectedSegment(selectedSegment === segment.id ? '' : segment.id)}
                 className="text-[#56AF40] hover:text-[#4a9636] text-xs sm:text-sm font-medium"
               >
-                {selectedSegment === segment.id ? 'Приховати' : 'Керувати'}
+                {selectedSegment === segment.id ? 'Приховати' : 'Керувати'} клієнтами
               </button>
 
               {selectedSegment === segment.id && (
