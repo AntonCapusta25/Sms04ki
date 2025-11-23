@@ -134,12 +134,12 @@ const ImportModal = ({ isOpen, onClose, onImport, fileInputRef }) => {
               Перетягніть файл сюди або натисніть для вибору
             </p>
             <p className="text-sm text-gray-400">
-              Підтримуються формати: .xlsx, .xls
+              Підтримуються формати: .xlsx, .xls, .csv
             </p>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx,.xls,.csv"
               onChange={handleFileSelect}
               className="hidden"
             />
@@ -1665,13 +1665,51 @@ const App = () => {
     if (!file) return;
 
     const reader = new FileReader();
+    
+    // Determine file type
+    const isCSV = file.name.toLowerCase().endsWith('.csv');
+    
     reader.onload = async (event) => {
       try {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        let jsonData;
+        
+        if (isCSV) {
+          // Parse CSV file
+          const text = event.target.result;
+          // Handle both Unix (\n) and Windows (\r\n) line endings
+          const lines = text.split(/\r?\n/).filter(line => line.trim());
+          
+          if (lines.length < 2) {
+            setImportResults({
+              imported: 0,
+              updated: 0,
+              skipped: [],
+              errors: ['Файл порожній або містить тільки заголовки']
+            });
+            setShowImportResultsModal(true);
+            return;
+          }
+          
+          // Parse header
+          const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+          
+          // Parse rows
+          jsonData = lines.slice(1).map(line => {
+            const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+            const row = {};
+            headers.forEach((header, idx) => {
+              row[header] = values[idx] || '';
+            });
+            return row;
+          });
+        } else {
+          // Parse Excel file
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          jsonData = XLSX.utils.sheet_to_json(worksheet);
+        }
 
         let imported = 0;
         let updated = 0;
@@ -1680,7 +1718,7 @@ const App = () => {
 
         for (let i = 0; i < jsonData.length; i++) {
           const row = jsonData[i];
-          const rowNumber = i + 2; // Excel row number (accounting for header)
+          const rowNumber = i + 2; // Excel/CSV row number (accounting for header)
           
           const firstName = row["Ім'я"] || '';
           const lastName = row['Прізвище'] || '';
@@ -1811,7 +1849,12 @@ const App = () => {
       }
     };
 
-    reader.readAsArrayBuffer(file);
+    // Read file based on type
+    if (isCSV) {
+      reader.readAsText(file, 'UTF-8');
+    } else {
+      reader.readAsArrayBuffer(file);
+    }
   };
 
   const addTemplate = async () => {
