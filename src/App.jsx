@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Users, MessageSquare, Plus, Trash2, Menu, X, Clock, CheckCircle, XCircle, MessageCircle, Upload, Download, Tags, Edit2 } from 'lucide-react';
+import { Send, Users, MessageSquare, Plus, Trash2, Menu, X, Clock, CheckCircle, XCircle, MessageCircle, Upload, Download, Tags, Edit2, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { sendSMS } from './twilioService';
 import * as XLSX from 'xlsx';
@@ -51,6 +51,231 @@ const getClientVariables = (client) => {
     email: client.email || '',
     status: client.status || ''
   };
+};
+
+// ============================================
+// IMPORT MODAL COMPONENT (NEW)
+// ============================================
+const ImportModal = ({ isOpen, onClose, onImport, fileInputRef }) => {
+  const [isDragging, setIsDragging] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      const event = { target: { files: [files[0]] } };
+      onImport(event);
+      onClose();
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      onImport(e);
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-[#2E2F33] rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-700">
+          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+            <Upload size={24} className="text-[#56AF40]" />
+            Імпорт клієнтів з Excel
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Drag & Drop Area */}
+          <div
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+              isDragging
+                ? 'border-[#56AF40] bg-[#56AF40]/10'
+                : 'border-gray-600 hover:border-[#56AF40]/50 hover:bg-[#1E1E21]'
+            }`}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <FileSpreadsheet size={48} className={`mx-auto mb-4 ${isDragging ? 'text-[#56AF40]' : 'text-gray-500'}`} />
+            <p className="text-lg text-white mb-2">
+              Перетягніть файл сюди або натисніть для вибору
+            </p>
+            <p className="text-sm text-gray-400">
+              Підтримуються формати: .xlsx, .xls
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
+
+          {/* Instructions */}
+          <div className="bg-[#1E1E21] rounded-lg p-5 border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <AlertCircle size={20} className="text-blue-400" />
+              Інструкція з імпорту
+            </h3>
+            
+            <div className="space-y-4 text-sm text-gray-300">
+              <div>
+                <h4 className="font-semibold text-white mb-2">📋 Формат файлу Excel:</h4>
+                <p className="mb-2">Файл повинен містити наступні колонки (українською):</p>
+                <div className="bg-[#2E2F33] rounded p-3 space-y-1 font-mono text-xs">
+                  <div className="flex gap-2">
+                    <span className="text-[#56AF40]">✓</span>
+                    <span><strong>Ім'я</strong> - ім'я клієнта (обов'язково)</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="text-[#56AF40]">✓</span>
+                    <span><strong>Прізвище</strong> - прізвище клієнта (обов'язково)</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="text-[#56AF40]">✓</span>
+                    <span><strong>Телефон</strong> - номер телефону (обов'язково)</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="text-gray-500">○</span>
+                    <span><strong>Email</strong> - email адреса (опціонально)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-white mb-2">📱 Формат телефону:</h4>
+                <ul className="space-y-1 ml-4">
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#56AF40] mt-1">•</span>
+                    <span>Українські номери: <code className="bg-[#2E2F33] px-2 py-0.5 rounded">+380671234567</code></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#56AF40] mt-1">•</span>
+                    <span>Можна без "+" (система додасть автоматично)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#56AF40] mt-1">•</span>
+                    <span>Приклад: <code className="bg-[#2E2F33] px-2 py-0.5 rounded">380671234567</code></span>
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-white mb-2">⚙️ Як працює імпорт:</h4>
+                <ul className="space-y-1 ml-4">
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-400 mt-1">1.</span>
+                    <span>Система перевіряє кожен номер телефону</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-400 mt-1">2.</span>
+                    <span>Якщо номер <strong>вже існує</strong> - оновлює дані клієнта</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-400 mt-1">3.</span>
+                    <span>Якщо номер <strong>новий</strong> - створює нового клієнта</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-400 mt-1">4.</span>
+                    <span>Рядки без імені або телефону - <strong>пропускаються</strong></span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-[#56AF40]/10 border border-[#56AF40]/30 rounded p-3">
+                <p className="text-[#56AF40] flex items-start gap-2">
+                  <span className="text-lg">💡</span>
+                  <span><strong>Порада:</strong> Можна експортувати існуючих клієнтів, відредагувати файл, і імпортувати назад для масового оновлення даних!</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Example */}
+          <div className="bg-[#1E1E21] rounded-lg p-5 border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-3">📊 Приклад файлу:</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border border-gray-600">
+                <thead className="bg-[#2E2F33]">
+                  <tr>
+                    <th className="border border-gray-600 px-3 py-2 text-left text-white">Прізвище</th>
+                    <th className="border border-gray-600 px-3 py-2 text-left text-white">Ім'я</th>
+                    <th className="border border-gray-600 px-3 py-2 text-left text-white">Телефон</th>
+                    <th className="border border-gray-600 px-3 py-2 text-left text-white">Email</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-300">
+                  <tr>
+                    <td className="border border-gray-600 px-3 py-2">Коваленко</td>
+                    <td className="border border-gray-600 px-3 py-2">Олена</td>
+                    <td className="border border-gray-600 px-3 py-2">+380671234567</td>
+                    <td className="border border-gray-600 px-3 py-2">olena@example.com</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-600 px-3 py-2">Петренко</td>
+                    <td className="border border-gray-600 px-3 py-2">Андрій</td>
+                    <td className="border border-gray-600 px-3 py-2">380509876543</td>
+                    <td className="border border-gray-600 px-3 py-2"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex-1 bg-[#56AF40] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#4a9636] transition-colors flex items-center justify-center gap-2"
+            >
+              <Upload size={20} />
+              Вибрати файл
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 bg-[#1E1E21] text-gray-300 px-6 py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors"
+            >
+              Скасувати
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ============================================
@@ -443,7 +668,9 @@ const ClientsTab = ({
   editingClient,
   setEditingClient,
   editForm,
-  setEditForm
+  setEditForm,
+  showImportModal,
+  setShowImportModal
 }) => {
   const [editingField, setEditingField] = useState(null);
 
@@ -490,19 +717,12 @@ const ClientsTab = ({
             Експорт
           </button>
           <button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setShowImportModal(true)}
             className="flex items-center gap-1.5 sm:gap-2 bg-purple-600 text-white px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Upload size={16} className="sm:w-5 sm:h-5" />
             Імпорт
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleImport}
-            className="hidden"
-          />
           <button
             onClick={() => setShowClientForm(!showClientForm)}
             className="flex items-center gap-1.5 sm:gap-2 bg-[#56AF40] text-white px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-[#4a9636] transition-colors"
@@ -512,6 +732,14 @@ const ClientsTab = ({
           </button>
         </div>
       </div>
+
+      {/* Import Modal */}
+      <ImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImport={handleImport}
+        fileInputRef={fileInputRef}
+      />
 
       {showClientForm && (
         <div className="bg-[#2E2F33] rounded-lg p-4 sm:p-6 shadow-lg">
@@ -1096,8 +1324,9 @@ const App = () => {
   const [segmentForm, setSegmentForm] = useState({ name: '', description: '', tags: '' });
   const [showSegmentForm, setShowSegmentForm] = useState(false);
 
-  // Import file ref
+  // Import file ref and modal
   const fileInputRef = useRef(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     fetchClients();
@@ -1555,6 +1784,8 @@ const App = () => {
               setEditingClient={setEditingClient}
               editForm={editForm}
               setEditForm={setEditForm}
+              showImportModal={showImportModal}
+              setShowImportModal={setShowImportModal}
             />
           )}
           
