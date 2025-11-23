@@ -9,7 +9,8 @@ import * as XLSX from 'xlsx';
 // ============================================
 // These map to actual client database fields + common custom fields
 const predefinedVariables = [
-  { name: 'name', label: "Ім'я", icon: '👤', isDbField: true },
+  { name: 'firstName', label: "Ім'я", icon: '👤', isDbField: true },
+  { name: 'lastName', label: 'Прізвище', icon: '👥', isDbField: true },
   { name: 'phone', label: 'Телефон', icon: '📱', isDbField: true },
   { name: 'email', label: 'Email', icon: '📧', isDbField: true },
   { name: 'status', label: 'Статус', icon: '✅', isDbField: true },
@@ -45,8 +46,15 @@ const extractVariables = (content) => {
 // Get client data as variables object
 const getClientVariables = (client) => {
   if (!client) return {};
+  
+  // Split full name into first and last name
+  const nameParts = (client.name || '').trim().split(' ');
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+  
   return {
-    name: client.name || '',
+    firstName: firstName,
+    lastName: lastName,
     phone: client.phone || '',
     email: client.email || '',
     status: client.status || ''
