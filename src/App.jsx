@@ -860,6 +860,7 @@ const ClientsTab = ({
 }) => {
   const [editingField, setEditingField] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [segmentFilter, setSegmentFilter] = useState('');
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -869,8 +870,23 @@ const ClientsTab = ({
     setSortConfig({ key, direction });
   };
 
+  // Filter clients by segment
+  const filteredClients = React.useMemo(() => {
+    if (!segmentFilter) {
+      return clients;
+    }
+    
+    if (segmentFilter === 'no-segment') {
+      return clients.filter(client => !client.segments || client.segments.length === 0);
+    }
+    
+    return clients.filter(client => 
+      client.segments?.some(seg => seg.id === segmentFilter)
+    );
+  }, [clients, segmentFilter]);
+
   const sortedClients = React.useMemo(() => {
-    let sortableClients = [...clients];
+    let sortableClients = [...filteredClients];
     if (sortConfig.key !== null) {
       sortableClients.sort((a, b) => {
         let aValue, bValue;
@@ -910,7 +926,7 @@ const ClientsTab = ({
       });
     }
     return sortableClients;
-  }, [clients, sortConfig]);
+  }, [filteredClients, sortConfig]);
 
   const startEditing = (client, field) => {
     setEditingClient(client.id);
@@ -946,7 +962,22 @@ const ClientsTab = ({
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-xl sm:text-2xl font-semibold text-white">Управління клієнтами</h2>
-        <div className="flex flex-wrap gap-2 sm:gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          {/* Segment Filter */}
+          <select
+            value={segmentFilter}
+            onChange={(e) => setSegmentFilter(e.target.value)}
+            className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-[#2E2F33] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40] transition-colors"
+          >
+            <option value="">Всі сегменти</option>
+            <option value="no-segment">Без сегменту</option>
+            {segments.map(segment => (
+              <option key={segment.id} value={segment.id}>
+                {segment.name}
+              </option>
+            ))}
+          </select>
+
           <button
             onClick={exportClients}
             className="flex items-center gap-1.5 sm:gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg hover:bg-blue-700 transition-colors"
@@ -1232,18 +1263,52 @@ const ClientsTab = ({
         </div>
       </div>
       
-      {/* Sort status indicator */}
-      {sortConfig.key && (
-        <div className="text-xs sm:text-sm text-gray-500 text-center">
-          📊 Сортування: {
-            sortConfig.key === 'name' ? "Ім'я" :
-            sortConfig.key === 'phone' ? 'Телефон' :
-            sortConfig.key === 'email' ? 'Email' :
-            sortConfig.key === 'segment' ? 'Сегменти' :
-            sortConfig.key === 'status' ? 'Статус' : ''
-          } ({sortConfig.direction === 'asc' ? 'А → Я' : 'Я → А'})
-        </div>
-      )}
+      {/* Filter and Sort status indicators */}
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 text-center sm:text-left">
+        {segmentFilter && (
+          <div className="flex items-center justify-center sm:justify-start gap-2">
+            <span>🔍 Фільтр:</span>
+            <span className="text-[#56AF40] font-medium">
+              {segmentFilter === 'no-segment' ? 'Без сегменту' : 
+                segments.find(s => s.id === segmentFilter)?.name || 'Всі сегменти'}
+            </span>
+            <span className="text-gray-600">
+              ({sortedClients.length} {sortedClients.length === 1 ? 'клієнт' : 
+                sortedClients.length < 5 ? 'клієнти' : 'клієнтів'})
+            </span>
+            <button
+              onClick={() => setSegmentFilter('')}
+              className="text-red-400 hover:text-red-300 ml-2"
+              title="Скасувати фільтр"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        
+        {sortConfig.key && (
+          <div className="flex items-center justify-center sm:justify-start gap-2">
+            <span>📊 Сортування:</span>
+            <span className="text-[#56AF40] font-medium">
+              {sortConfig.key === 'name' ? "Ім'я" :
+               sortConfig.key === 'phone' ? 'Телефон' :
+               sortConfig.key === 'email' ? 'Email' :
+               sortConfig.key === 'segment' ? 'Сегменти' :
+               sortConfig.key === 'status' ? 'Статус' : ''}
+            </span>
+            <span className="text-gray-600">
+              ({sortConfig.direction === 'asc' ? 'А → Я' : 'Я → А'})
+            </span>
+          </div>
+        )}
+        
+        {!segmentFilter && !sortConfig.key && (
+          <div className="text-center">
+            Всього: {clients.length} {clients.length === 1 ? 'клієнт' : 
+              clients.length < 5 ? 'клієнти' : 'клієнтів'}
+          </div>
+        )}
+      </div>
       
       <div className="text-xs sm:text-sm text-gray-500 text-center">
         💡 Підказка: Клікніть на будь-яке поле для швидкого редагування. Натисніть Enter для збереження або Escape для скасування.
