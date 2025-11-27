@@ -46,12 +46,12 @@ const extractVariables = (content) => {
 // Get client data as variables object
 const getClientVariables = (client) => {
   if (!client) return {};
-  
+
   // Split full name into first and last name
   const nameParts = (client.name || '').trim().split(' ');
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
-  
+
   return {
     firstName: firstName,
     lastName: lastName,
@@ -130,11 +130,10 @@ const ImportModal = ({ isOpen, onClose, onImport, fileInputRef }) => {
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
-              isDragging
-                ? 'border-[#56AF40] bg-[#56AF40]/10'
-                : 'border-gray-600 hover:border-[#56AF40]/50 hover:bg-[#1E1E21]'
-            }`}
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${isDragging
+              ? 'border-[#56AF40] bg-[#56AF40]/10'
+              : 'border-gray-600 hover:border-[#56AF40]/50 hover:bg-[#1E1E21]'
+              }`}
             onClick={() => fileInputRef.current?.click()}
           >
             <FileSpreadsheet size={48} className={`mx-auto mb-4 ${isDragging ? 'text-[#56AF40]' : 'text-gray-500'}`} />
@@ -159,7 +158,7 @@ const ImportModal = ({ isOpen, onClose, onImport, fileInputRef }) => {
               <AlertCircle size={20} className="text-blue-400" />
               Інструкція з імпорту
             </h3>
-            
+
             <div className="space-y-4 text-sm text-gray-300">
               <div>
                 <h4 className="font-semibold text-white mb-2">📋 Формат файлу Excel:</h4>
@@ -353,7 +352,7 @@ const ImportResultsModal = ({ isOpen, onClose, results }) => {
               <span className="text-lg font-bold text-[#56AF40]">{successRate}%</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-2">
-              <div 
+              <div
                 className="bg-[#56AF40] h-2 rounded-full transition-all duration-500"
                 style={{ width: `${successRate}%` }}
               />
@@ -367,7 +366,7 @@ const ImportResultsModal = ({ isOpen, onClose, results }) => {
                 <AlertCircle size={20} className="text-yellow-400" />
                 Пропущені записи ({results.skipped.length})
               </h3>
-              
+
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {results.skipped.map((skip, idx) => (
                   <div key={idx} className="bg-[#2E2F33] rounded-lg p-4 border border-gray-700">
@@ -407,7 +406,7 @@ const ImportResultsModal = ({ isOpen, onClose, results }) => {
                 <XCircle size={20} className="text-red-400" />
                 Помилки ({results.errors.length})
               </h3>
-              
+
               <div className="space-y-2">
                 {results.errors.map((error, idx) => (
                   <div key={idx} className="bg-[#2E2F33] rounded p-3 border border-gray-700">
@@ -432,7 +431,7 @@ const ImportResultsModal = ({ isOpen, onClose, results }) => {
             <p className="text-sm text-blue-400 flex items-start gap-2">
               <span className="text-lg">💡</span>
               <span>
-                <strong>Порада:</strong> Виправте пропущені записи у вашому Excel файлі та імпортуйте знову. 
+                <strong>Порада:</strong> Виправте пропущені записи у вашому Excel файлі та імпортуйте знову.
                 Система автоматично оновить існуючі записи за номером телефону.
               </span>
             </p>
@@ -465,11 +464,10 @@ const VariablePills = ({ onInsert }) => (
             onInsert(variable.name);
             e.currentTarget.blur(); // Remove focus to prevent space from re-clicking
           }}
-          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${
-            variable.isDbField 
-              ? 'bg-[#56AF40]/20 text-[#56AF40] border-[#56AF40]/30 hover:bg-[#56AF40] hover:text-white'
-              : 'bg-[#2E2F33] text-white border-gray-600 hover:bg-[#56AF40] hover:border-[#56AF40]'
-          }`}
+          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border transition-all text-xs sm:text-sm ${variable.isDbField
+            ? 'bg-[#56AF40]/20 text-[#56AF40] border-[#56AF40]/30 hover:bg-[#56AF40] hover:text-white'
+            : 'bg-[#2E2F33] text-white border-gray-600 hover:bg-[#56AF40] hover:border-[#56AF40]'
+            }`}
           title={variable.isDbField ? `Автозаповнення з бази: {{${variable.name}}}` : `Ручна змінна: {{${variable.name}}}`}
         >
           <span className="text-sm sm:text-base">{variable.icon}</span>
@@ -490,9 +488,8 @@ const VariablePills = ({ onInsert }) => (
 const NavItem = ({ icon, label, active, onClick, collapsed }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg mb-2 transition-all text-sm sm:text-base ${
-      active ? 'bg-[#56AF40] text-white' : 'text-gray-400 hover:bg-[#1E1E21] hover:text-white'
-    }`}
+    className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg mb-2 transition-all text-sm sm:text-base ${active ? 'bg-[#56AF40] text-white' : 'text-gray-400 hover:bg-[#1E1E21] hover:text-white'
+      }`}
   >
     {icon}
     {!collapsed && <span className="font-medium">{label}</span>}
@@ -506,12 +503,12 @@ const SidebarNav = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) =>
   <>
     {/* Mobile Overlay */}
     {sidebarOpen && (
-      <div 
+      <div
         className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
         onClick={() => setSidebarOpen(false)}
       />
     )}
-    
+
     {/* Sidebar */}
     <div className={`
       ${sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-20'} 
@@ -531,7 +528,7 @@ const SidebarNav = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) =>
         <NavItem icon={<MessageSquare size={18} />} label="Шаблони" active={activeTab === 'templates'} onClick={() => { setActiveTab('templates'); if (window.innerWidth < 1024) setSidebarOpen(false); }} collapsed={!sidebarOpen} />
         <NavItem icon={<Clock size={18} />} label="Історія" active={activeTab === 'history'} onClick={() => { setActiveTab('history'); if (window.innerWidth < 1024) setSidebarOpen(false); }} collapsed={!sidebarOpen} />
       </nav>
-      
+
       {/* Footer */}
       {sidebarOpen && (
         <div className="p-4 border-t border-gray-700">
@@ -549,10 +546,10 @@ const SidebarNav = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) =>
 // ============================================
 // SEND SMS TAB COMPONENT (OUTSIDE APP)
 // ============================================
-const SendSMSTab = ({ 
-  clients, 
-  templates, 
-  selectedClient, 
+const SendSMSTab = ({
+  clients,
+  templates,
+  selectedClient,
   setSelectedClient,
   selectedTemplate,
   handleTemplateSelect,
@@ -561,15 +558,37 @@ const SendSMSTab = ({
   customVariables,
   setCustomVariables,
   loading,
-  handleSendSMS 
+  handleSendSMS
 }) => {
+  const textareaRef = useRef(null);
+
   const insertVariable = (varName) => {
-    setMessageContent(prev => prev + `{{${varName}}} `);
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setMessageContent(prev => prev + `{{${varName}}} `);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = messageContent;
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    const newText = before + `{{${varName}}} ` + after;
+
+    setMessageContent(newText);
+
+    // Set cursor position after the inserted variable
+    setTimeout(() => {
+      const newPosition = start + `{{${varName}}} `.length;
+      textarea.setSelectionRange(newPosition, newPosition);
+      textarea.focus();
+    }, 0);
   };
 
   // Get variables that need to be filled (non-DB fields)
   const usedVariables = extractVariables(messageContent);
-  const customVarsNeeded = usedVariables.filter(v => 
+  const customVarsNeeded = usedVariables.filter(v =>
     !predefinedVariables.find(pv => pv.name === v && pv.isDbField)
   );
 
@@ -579,7 +598,7 @@ const SendSMSTab = ({
     <div className="space-y-4 sm:space-y-6">
       <div className="bg-[#2E2F33] rounded-lg p-4 sm:p-6 shadow-lg">
         <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-white">Надіслати SMS повідомлення</h2>
-        
+
         <div className="space-y-3 sm:space-y-4">
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">Оберіть клієнта</label>
@@ -614,6 +633,7 @@ const SendSMSTab = ({
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">Повідомлення</label>
             <textarea
+              ref={textareaRef}
               value={messageContent}
               onChange={(e) => setMessageContent(e.target.value)}
               rows={5}
@@ -632,7 +652,7 @@ const SendSMSTab = ({
                   <input
                     type="text"
                     value={customVariables[variable] || ''}
-                    onChange={(e) => setCustomVariables({...customVariables, [variable]: e.target.value})}
+                    onChange={(e) => setCustomVariables({ ...customVariables, [variable]: e.target.value })}
                     className="w-full px-3 py-2 text-sm sm:text-base bg-[#2E2F33] border border-gray-700 rounded text-white focus:outline-none focus:border-[#56AF40]"
                     placeholder={`Введіть значення для ${variable}`}
                   />
@@ -690,8 +710,30 @@ const BatchSendTab = ({
   handleBatchSend,
   getClientsBySegment
 }) => {
+  const textareaRef = useRef(null);
+
   const insertVariable = (varName) => {
-    setMessageContent(prev => prev + `{{${varName}}} `);
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setMessageContent(prev => prev + `{{${varName}}} `);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = messageContent;
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    const newText = before + `{{${varName}}} ` + after;
+
+    setMessageContent(newText);
+
+    // Set cursor position after the inserted variable
+    setTimeout(() => {
+      const newPosition = start + `{{${varName}}} `.length;
+      textarea.setSelectionRange(newPosition, newPosition);
+      textarea.focus();
+    }, 0);
   };
 
   const selectSegment = (segmentId) => {
@@ -716,7 +758,7 @@ const BatchSendTab = ({
 
   // Get variables that need to be filled (non-DB fields)
   const usedVariables = extractVariables(messageContent);
-  const customVarsNeeded = usedVariables.filter(v => 
+  const customVarsNeeded = usedVariables.filter(v =>
     !predefinedVariables.find(pv => pv.name === v && pv.isDbField)
   );
 
@@ -724,7 +766,7 @@ const BatchSendTab = ({
     <div className="space-y-4 sm:space-y-6">
       <div className="bg-[#2E2F33] rounded-lg p-4 sm:p-6 shadow-lg">
         <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-white">Масова розсилка SMS</h2>
-        
+
         <div className="space-y-3 sm:space-y-4">
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">Швидкий вибір за сегментом</label>
@@ -796,6 +838,7 @@ const BatchSendTab = ({
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">Повідомлення</label>
             <textarea
+              ref={textareaRef}
               value={messageContent}
               onChange={(e) => setMessageContent(e.target.value)}
               rows={5}
@@ -815,7 +858,7 @@ const BatchSendTab = ({
                   <input
                     type="text"
                     value={customVariables[variable] || ''}
-                    onChange={(e) => setCustomVariables({...customVariables, [variable]: e.target.value})}
+                    onChange={(e) => setCustomVariables({ ...customVariables, [variable]: e.target.value })}
                     className="w-full px-3 py-2 text-sm sm:text-base bg-[#2E2F33] border border-gray-700 rounded text-white focus:outline-none focus:border-[#56AF40]"
                     placeholder={`Введіть значення для ${variable}`}
                   />
@@ -900,12 +943,12 @@ const ClientsTab = ({
     if (!segmentFilter) {
       return clients;
     }
-    
+
     if (segmentFilter === 'no-segment') {
       return clients.filter(client => !client.segments || client.segments.length === 0);
     }
-    
-    return clients.filter(client => 
+
+    return clients.filter(client =>
       client.segments?.some(seg => seg.id === segmentFilter)
     );
   }, [clients, segmentFilter]);
@@ -983,7 +1026,7 @@ const ClientsTab = ({
     // Optimistic update
     const updatedData = { [field]: value };
     updateClient(clientId, updatedData);
-    
+
     // Clear editing state
     setEditingClient(null);
     setEditingField(null);
@@ -1065,26 +1108,26 @@ const ClientsTab = ({
               type="text"
               placeholder="Ім'я"
               value={clientForm.name}
-              onChange={(e) => setClientForm({...clientForm, name: e.target.value})}
+              onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })}
               className="px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
             />
             <input
               type="tel"
               placeholder="Телефон"
               value={clientForm.phone}
-              onChange={(e) => setClientForm({...clientForm, phone: e.target.value})}
+              onChange={(e) => setClientForm({ ...clientForm, phone: e.target.value })}
               className="px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
             />
             <input
               type="email"
               placeholder="Email (опціонально)"
               value={clientForm.email}
-              onChange={(e) => setClientForm({...clientForm, email: e.target.value})}
+              onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })}
               className="px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
             />
             <select
               value={clientForm.status}
-              onChange={(e) => setClientForm({...clientForm, status: e.target.value})}
+              onChange={(e) => setClientForm({ ...clientForm, status: e.target.value })}
               className="px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
             >
               <option value="active">Активний</option>
@@ -1116,7 +1159,7 @@ const ClientsTab = ({
           <table className="w-full">
             <thead className="bg-[#1E1E21]">
               <tr>
-                <th 
+                <th
                   onClick={() => handleSort('name')}
                   className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors select-none"
                 >
@@ -1125,7 +1168,7 @@ const ClientsTab = ({
                     <SortIcon column="name" sortConfig={sortConfig} />
                   </div>
                 </th>
-                <th 
+                <th
                   onClick={() => handleSort('phone')}
                   className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors select-none"
                 >
@@ -1134,7 +1177,7 @@ const ClientsTab = ({
                     <SortIcon column="phone" sortConfig={sortConfig} />
                   </div>
                 </th>
-                <th 
+                <th
                   onClick={() => handleSort('email')}
                   className="hidden sm:table-cell px-6 py-4 text-left text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors select-none"
                 >
@@ -1143,7 +1186,7 @@ const ClientsTab = ({
                     <SortIcon column="email" sortConfig={sortConfig} />
                   </div>
                 </th>
-                <th 
+                <th
                   onClick={() => handleSort('segment')}
                   className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors select-none"
                 >
@@ -1152,7 +1195,7 @@ const ClientsTab = ({
                     <SortIcon column="segment" sortConfig={sortConfig} />
                   </div>
                 </th>
-                <th 
+                <th
                   onClick={() => handleSort('status')}
                   className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors select-none"
                 >
@@ -1175,7 +1218,7 @@ const ClientsTab = ({
                       <input
                         type="text"
                         value={editForm.name}
-                        onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                         onBlur={() => handleFieldUpdate(client.id, 'name', editForm.name)}
                         onKeyDown={(e) => handleKeyPress(e, client.id, 'name')}
                         autoFocus
@@ -1198,7 +1241,7 @@ const ClientsTab = ({
                       <input
                         type="tel"
                         value={editForm.phone}
-                        onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                        onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                         onBlur={() => handleFieldUpdate(client.id, 'phone', editForm.phone)}
                         onKeyDown={(e) => handleKeyPress(e, client.id, 'phone')}
                         autoFocus
@@ -1221,7 +1264,7 @@ const ClientsTab = ({
                       <input
                         type="email"
                         value={editForm.email}
-                        onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                         onBlur={() => handleFieldUpdate(client.id, 'email', editForm.email)}
                         onKeyDown={(e) => handleKeyPress(e, client.id, 'email')}
                         autoFocus
@@ -1245,11 +1288,10 @@ const ClientsTab = ({
                       onChange={(e) => {
                         updateClientSegment(client.id, e.target.value);
                       }}
-                      className={`px-2 sm:px-3 py-1 pr-7 rounded-full text-xs sm:text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-[#56AF40] appearance-none bg-no-repeat ${
-                        client.segments?.[0]
-                          ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
-                          : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30'
-                      }`}
+                      className={`px-2 sm:px-3 py-1 pr-7 rounded-full text-xs sm:text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-[#56AF40] appearance-none bg-no-repeat ${client.segments?.[0]
+                        ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+                        : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30'
+                        }`}
                       style={{
                         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='currentColor' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                         backgroundPosition: 'right 0.5rem center',
@@ -1270,11 +1312,10 @@ const ClientsTab = ({
                     <select
                       value={client.status}
                       onChange={(e) => handleFieldUpdate(client.id, 'status', e.target.value)}
-                      className={`px-2 sm:px-3 py-1 pr-7 rounded-full text-xs sm:text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-[#56AF40] appearance-none bg-no-repeat ${
-                        client.status === 'active' 
-                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
-                          : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30'
-                      }`}
+                      className={`px-2 sm:px-3 py-1 pr-7 rounded-full text-xs sm:text-sm cursor-pointer transition-colors border-0 focus:outline-none focus:ring-2 focus:ring-[#56AF40] appearance-none bg-no-repeat ${client.status === 'active'
+                        ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                        : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30'
+                        }`}
                       style={{
                         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='currentColor' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                         backgroundPosition: 'right 0.5rem center',
@@ -1302,7 +1343,7 @@ const ClientsTab = ({
           </table>
         </div>
       </div>
-      
+
       {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="bg-[#2E2F33] rounded-lg p-4 shadow-lg">
@@ -1339,12 +1380,12 @@ const ClientsTab = ({
                 {[...Array(totalPages)].map((_, idx) => {
                   const page = idx + 1;
                   // Show first page, last page, current page, and 2 pages around current
-                  const showPage = 
-                    page === 1 || 
-                    page === totalPages || 
+                  const showPage =
+                    page === 1 ||
+                    page === totalPages ||
                     (page >= currentPage - 2 && page <= currentPage + 2);
-                  
-                  const showEllipsis = 
+
+                  const showEllipsis =
                     (page === currentPage - 3 && currentPage > 4) ||
                     (page === currentPage + 3 && currentPage < totalPages - 3);
 
@@ -1358,11 +1399,10 @@ const ClientsTab = ({
                     <button
                       key={page}
                       onClick={() => goToPage(page)}
-                      className={`px-3 py-1 rounded transition-colors ${
-                        currentPage === page
-                          ? 'bg-[#56AF40] text-white font-semibold'
-                          : 'bg-[#1E1E21] text-gray-400 hover:bg-[#56AF40] hover:text-white'
-                      }`}
+                      className={`px-3 py-1 rounded transition-colors ${currentPage === page
+                        ? 'bg-[#56AF40] text-white font-semibold'
+                        : 'bg-[#1E1E21] text-gray-400 hover:bg-[#56AF40] hover:text-white'
+                        }`}
                     >
                       {page}
                     </button>
@@ -1411,18 +1451,18 @@ const ClientsTab = ({
           </div>
         </div>
       )}
-      
+
       {/* Filter and Sort status indicators */}
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 text-center sm:text-left">
         {segmentFilter && (
           <div className="flex items-center justify-center sm:justify-start gap-2">
             <span>🔍 Фільтр:</span>
             <span className="text-[#56AF40] font-medium">
-              {segmentFilter === 'no-segment' ? 'Без сегменту' : 
+              {segmentFilter === 'no-segment' ? 'Без сегменту' :
                 segments.find(s => s.id === segmentFilter)?.name || 'Всі сегменти'}
             </span>
             <span className="text-gray-600">
-              ({sortedClients.length} {sortedClients.length === 1 ? 'клієнт' : 
+              ({sortedClients.length} {sortedClients.length === 1 ? 'клієнт' :
                 sortedClients.length < 5 ? 'клієнти' : 'клієнтів'})
             </span>
             <button
@@ -1434,32 +1474,32 @@ const ClientsTab = ({
             </button>
           </div>
         )}
-        
+
         {sortConfig.key && (
           <div className="flex items-center justify-center sm:justify-start gap-2">
             <span>📊 Сортування:</span>
             <span className="text-[#56AF40] font-medium">
               {sortConfig.key === 'name' ? "Ім'я" :
-               sortConfig.key === 'phone' ? 'Телефон' :
-               sortConfig.key === 'email' ? 'Email' :
-               sortConfig.key === 'segment' ? 'Сегменти' :
-               sortConfig.key === 'status' ? 'Статус' : ''}
+                sortConfig.key === 'phone' ? 'Телефон' :
+                  sortConfig.key === 'email' ? 'Email' :
+                    sortConfig.key === 'segment' ? 'Сегменти' :
+                      sortConfig.key === 'status' ? 'Статус' : ''}
             </span>
             <span className="text-gray-600">
               ({sortConfig.direction === 'asc' ? 'А → Я' : 'Я → А'})
             </span>
           </div>
         )}
-        
+
         {!segmentFilter && !sortConfig.key && (
           <div className="text-center">
-            Всього: {clients.length} {clients.length === 1 ? 'клієнт' : 
+            Всього: {clients.length} {clients.length === 1 ? 'клієнт' :
               clients.length < 5 ? 'клієнти' : 'клієнтів'}
             {totalPages > 1 && ` • Сторінка ${currentPage} з ${totalPages}`}
           </div>
         )}
       </div>
-      
+
       <div className="text-xs sm:text-sm text-gray-500 text-center">
         💡 Підказка: Клікніть на будь-яке поле для швидкого редагування. Натисніть Enter для збереження або Escape для скасування.
       </div>
@@ -1482,11 +1522,36 @@ const TemplatesTab = ({
   editingTemplate,
   setEditingTemplate
 }) => {
+  const textareaRef = useRef(null);
+
   const insertVariable = (varName) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setTemplateForm(prev => ({
+        ...prev,
+        content: prev.content + `{{${varName}}} `
+      }));
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = templateForm.content;
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    const newText = before + `{{${varName}}} ` + after;
+
     setTemplateForm(prev => ({
       ...prev,
-      content: prev.content + `{{${varName}}} `
+      content: newText
     }));
+
+    // Set cursor position after the inserted variable
+    setTimeout(() => {
+      const newPosition = start + `{{${varName}}} `.length;
+      textarea.setSelectionRange(newPosition, newPosition);
+      textarea.focus();
+    }, 0);
   };
 
   const handleEdit = (template) => {
@@ -1539,23 +1604,24 @@ const TemplatesTab = ({
               type="text"
               placeholder="Назва шаблону"
               value={templateForm.name}
-              onChange={(e) => setTemplateForm({...templateForm, name: e.target.value})}
+              onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
             />
-            
+
             <VariablePills onInsert={insertVariable} />
-            
+
             <div>
               <textarea
+                ref={textareaRef}
                 placeholder="Текст повідомлення - натисніть на змінні вище для вставки"
                 value={templateForm.content}
-                onChange={(e) => setTemplateForm({...templateForm, content: e.target.value})}
+                onChange={(e) => setTemplateForm({ ...templateForm, content: e.target.value })}
                 rows={5}
                 className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40] transition-colors"
               />
               <p className="text-xs text-gray-500 mt-1">💡 Змінні будуть автоматично виявлені та показані нижче</p>
             </div>
-            
+
             {/* Show detected variables */}
             {templateForm.content && extractVariables(templateForm.content).length > 0 && (
               <div className="bg-[#1E1E21] p-3 rounded-lg border border-gray-700">
@@ -1569,7 +1635,7 @@ const TemplatesTab = ({
                 </div>
               </div>
             )}
-            
+
             <div className="flex gap-3">
               <button
                 onClick={handleSubmit}
@@ -1633,7 +1699,7 @@ const TemplatesTab = ({
 const HistoryTab = ({ messages }) => (
   <div className="space-y-4 sm:space-y-6">
     <h2 className="text-xl sm:text-2xl font-semibold text-white">Історія повідомлень</h2>
-    
+
     <div className="bg-[#2E2F33] rounded-lg shadow-lg overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -1653,9 +1719,8 @@ const HistoryTab = ({ messages }) => (
                 <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-base text-gray-300">{message.phone}</td>
                 <td className="hidden md:table-cell px-6 py-4 text-gray-300 max-w-md truncate">{message.content}</td>
                 <td className="px-3 sm:px-6 py-3 sm:py-4">
-                  <span className={`flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm ${
-                    message.status === 'sent' ? 'text-green-400' : message.status === 'failed' ? 'text-red-400' : 'text-yellow-400'
-                  }`}>
+                  <span className={`flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm ${message.status === 'sent' ? 'text-green-400' : message.status === 'failed' ? 'text-red-400' : 'text-yellow-400'
+                    }`}>
                     {message.status === 'sent' ? <CheckCircle size={14} className="sm:w-[18px] sm:h-[18px]" /> : message.status === 'failed' ? <XCircle size={14} className="sm:w-[18px] sm:h-[18px]" /> : <Clock size={14} className="sm:w-[18px] sm:h-[18px]" />}
                     {message.status === 'sent' ? 'Надіслано' : message.status === 'failed' ? 'Помилка' : 'В черзі'}
                   </span>
@@ -1711,13 +1776,13 @@ const SegmentsTab = ({
               type="text"
               placeholder="Назва сегменту (наприклад, VIP клієнти, Нові клієнти)"
               value={segmentForm.name}
-              onChange={(e) => setSegmentForm({...segmentForm, name: e.target.value})}
+              onChange={(e) => setSegmentForm({ ...segmentForm, name: e.target.value })}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
             />
             <textarea
               placeholder="Опис (наприклад, Клієнти які витратили понад 1000 грн)"
               value={segmentForm.description}
-              onChange={(e) => setSegmentForm({...segmentForm, description: e.target.value})}
+              onChange={(e) => setSegmentForm({ ...segmentForm, description: e.target.value })}
               rows={3}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
             />
@@ -1725,7 +1790,7 @@ const SegmentsTab = ({
               type="text"
               placeholder="Теги (через кому: vip, преміум, ботокс)"
               value={segmentForm.tags}
-              onChange={(e) => setSegmentForm({...segmentForm, tags: e.target.value})}
+              onChange={(e) => setSegmentForm({ ...segmentForm, tags: e.target.value })}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-[#1E1E21] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#56AF40]"
             />
             <div className="flex gap-3">
@@ -1896,12 +1961,12 @@ const App = () => {
         )
       `)
       .order('created_at', { ascending: false });
-    
+
     const clientsWithSegments = data?.map(client => ({
       ...client,
       segments: client.client_segments?.map(cs => cs.segments) || []
     })) || [];
-    
+
     setClients(clientsWithSegments);
   };
 
@@ -1969,19 +2034,19 @@ const App = () => {
       try {
         const client = clients.find(c => c.id === clientId);
         const currentSegment = client.segments?.[0];
-        
+
         // Remove from current segment if exists
         if (currentSegment) {
           await supabase.from('client_segments').delete()
             .eq('client_id', clientId)
             .eq('segment_id', currentSegment.id);
         }
-        
+
         // Add to new segment if selected
         if (newSegmentId) {
-          await supabase.from('client_segments').insert([{ 
-            client_id: clientId, 
-            segment_id: newSegmentId 
+          await supabase.from('client_segments').insert([{
+            client_id: clientId,
+            segment_id: newSegmentId
           }]);
         }
       } catch (error) {
@@ -1993,14 +2058,14 @@ const App = () => {
   };
 
   const getClientsBySegment = (segmentId) => {
-    return clients.filter(client => 
+    return clients.filter(client =>
       client.segments?.some(seg => seg.id === segmentId)
     );
   };
 
   const addClient = async () => {
     if (!clientForm.name || !clientForm.phone) return;
-    
+
     // Optimistic update - create temporary client with temp ID
     const tempClient = {
       id: `temp-${Date.now()}`, // Temporary ID
@@ -2009,14 +2074,14 @@ const App = () => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-    
+
     // Add to UI immediately
     setClients(prevClients => [tempClient, ...prevClients]);
-    
+
     // Clear form and close
     setClientForm({ name: '', phone: '', email: '', status: 'active' });
     setShowClientForm(false);
-    
+
     // Background database operation
     try {
       const { data, error } = await supabase
@@ -2029,24 +2094,24 @@ const App = () => {
             segments(id, name, tags)
           )
         `);
-      
+
       if (error) throw error;
-      
+
       // Replace temp client with real one from database
       if (data && data.length > 0) {
         const newClient = {
           ...data[0],
           segments: data[0].client_segments?.map(cs => cs.segments) || []
         };
-        
-        setClients(prevClients => 
+
+        setClients(prevClients =>
           prevClients.map(c => c.id === tempClient.id ? newClient : c)
         );
       }
     } catch (error) {
       console.error('Помилка додавання клієнта:', error);
       // Remove temp client on error
-      setClients(prevClients => 
+      setClients(prevClients =>
         prevClients.filter(c => c.id !== tempClient.id)
       );
       alert('Помилка при додаванні клієнта: ' + error.message);
@@ -2055,9 +2120,9 @@ const App = () => {
 
   const updateClient = async (clientId, updatedData) => {
     // Optimistic update - update UI immediately
-    setClients(prevClients => 
-      prevClients.map(client => 
-        client.id === clientId 
+    setClients(prevClients =>
+      prevClients.map(client =>
+        client.id === clientId
           ? { ...client, ...updatedData, updated_at: new Date().toISOString() }
           : client
       )
@@ -2089,7 +2154,7 @@ const App = () => {
       const nameParts = client.name.split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
-      
+
       return {
         'Прізвище': lastName,
         "Ім'я": firstName,
@@ -2128,20 +2193,20 @@ const App = () => {
     if (!file) return;
 
     const reader = new FileReader();
-    
+
     // Determine file type
     const isCSV = file.name.toLowerCase().endsWith('.csv');
-    
+
     reader.onload = async (event) => {
       try {
         let jsonData;
-        
+
         if (isCSV) {
           // Parse CSV file
           const text = event.target.result;
           // Handle both Unix (\n) and Windows (\r\n) line endings
           const lines = text.split(/\r?\n/).filter(line => line.trim());
-          
+
           if (lines.length < 2) {
             setImportResults({
               imported: 0,
@@ -2152,10 +2217,10 @@ const App = () => {
             setShowImportResultsModal(true);
             return;
           }
-          
+
           // Parse header
           const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-          
+
           // Parse rows
           jsonData = lines.slice(1).map(line => {
             const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
@@ -2182,7 +2247,7 @@ const App = () => {
         for (let i = 0; i < jsonData.length; i++) {
           const row = jsonData[i];
           const rowNumber = i + 2; // Excel/CSV row number (accounting for header)
-          
+
           const firstName = row["Ім'я"] || '';
           const lastName = row['Прізвище'] || '';
           const name = `${firstName} ${lastName}`.trim();
@@ -2292,10 +2357,10 @@ const App = () => {
         // Set results and show modal
         setImportResults({ imported, updated, skipped, errors });
         setShowImportResultsModal(true);
-        
+
         // Refresh client list
         fetchClients();
-        
+
         // Clear file input
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
@@ -2322,16 +2387,16 @@ const App = () => {
 
   const addTemplate = async () => {
     if (!templateForm.name || !templateForm.content) return;
-    
+
     // Auto-detect variables from content
     const detectedVariables = extractVariables(templateForm.content);
-    
-    await supabase.from('templates').insert([{ 
+
+    await supabase.from('templates').insert([{
       name: templateForm.name,
       content: templateForm.content,
       variables: detectedVariables
     }]);
-    
+
     setTemplateForm({ name: '', content: '', variables: '' });
     setShowTemplateForm(false);
     fetchTemplates();
@@ -2339,18 +2404,18 @@ const App = () => {
 
   const updateTemplate = async (templateId) => {
     if (!templateForm.name || !templateForm.content) return;
-    
+
     // Auto-detect variables from content
     const detectedVariables = extractVariables(templateForm.content);
-    
+
     await supabase.from('templates')
-      .update({ 
+      .update({
         name: templateForm.name,
         content: templateForm.content,
         variables: detectedVariables
       })
       .eq('id', templateId);
-    
+
     setTemplateForm({ name: '', content: '', variables: '' });
     setShowTemplateForm(false);
     setEditingTemplate(null);
@@ -2377,17 +2442,17 @@ const App = () => {
     setLoading(true);
     try {
       const client = clients.find(c => c.id === selectedClient);
-      
+
       // Combine DB fields with custom variables
       const allVariables = {
         ...getClientVariables(client),
         ...customVariables
       };
-      
+
       const finalMessage = replaceVariables(messageContent, allVariables);
-      
+
       const result = await sendSMS(client.phone, finalMessage);
-      
+
       await supabase.from('messages').insert([{
         client_id: client.id,
         template_id: selectedTemplate || null,
@@ -2411,21 +2476,21 @@ const App = () => {
   const handleBatchSend = async () => {
     if (selectedClients.length === 0 || !messageContent) return;
     setLoading(true);
-    
+
     for (const clientId of selectedClients) {
       const client = clients.find(c => c.id === clientId);
-      
+
       // Combine DB fields with custom variables
       const allVariables = {
         ...getClientVariables(client),
         ...customVariables
       };
-      
+
       const finalMessage = replaceVariables(messageContent, allVariables);
-      
+
       try {
         const result = await sendSMS(client.phone, finalMessage);
-        
+
         await supabase.from('messages').insert([{
           client_id: client.id,
           template_id: selectedTemplate || null,
@@ -2464,18 +2529,18 @@ const App = () => {
 
   return (
     <div className="flex h-screen bg-[#1E1E21] overflow-hidden">
-      <SidebarNav 
+      <SidebarNav
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
       />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         {/* Header */}
         <div className="bg-[#2E2F33] border-b border-gray-700 px-4 sm:px-8 py-3 sm:py-4 flex items-center gap-3">
-          <button 
-            onClick={() => setSidebarOpen(true)} 
+          <button
+            onClick={() => setSidebarOpen(true)}
             className="lg:hidden text-gray-400 hover:text-white"
           >
             <Menu size={24} />
@@ -2489,7 +2554,7 @@ const App = () => {
             {activeTab === 'history' && 'Історія повідомлень'}
           </h1>
         </div>
-        
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-8">
           {activeTab === 'send' && (
@@ -2508,7 +2573,7 @@ const App = () => {
               handleSendSMS={handleSendSMS}
             />
           )}
-          
+
           {activeTab === 'batch' && (
             <BatchSendTab
               clients={clients}
@@ -2531,7 +2596,7 @@ const App = () => {
               getClientsBySegment={getClientsBySegment}
             />
           )}
-          
+
           {activeTab === 'clients' && (
             <ClientsTab
               clients={clients}
@@ -2560,7 +2625,7 @@ const App = () => {
               updateClientSegment={updateClientSegment}
             />
           )}
-          
+
           {activeTab === 'segments' && (
             <SegmentsTab
               segments={segments}
@@ -2578,7 +2643,7 @@ const App = () => {
               getClientsBySegment={getClientsBySegment}
             />
           )}
-          
+
           {activeTab === 'templates' && (
             <TemplatesTab
               templates={templates}
@@ -2593,7 +2658,7 @@ const App = () => {
               setEditingTemplate={setEditingTemplate}
             />
           )}
-          
+
           {activeTab === 'history' && (
             <HistoryTab messages={messages} />
           )}
